@@ -23,7 +23,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'backend-production-b798.up.railway.app',  # Your backend URL
-    'frontend-production-b1498.up.railway.app', # Your frontend URL
+    'https://crypto-tracker-v1.up.railway.app', # Your frontend URL
     'localhost',
     '127.0.0.1',
 ]
