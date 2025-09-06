@@ -5,31 +5,23 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-ALLOWED_HOSTS = ['*'] # This is simple for now, you can make it more secure later
-
-
-# DEBUG should be False in production, and True only for local development
-# We read a string 'True' or 'False' and convert it to a boolean
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
+# --- SECURITY SETTINGS ---
+# Load secrets from environment variables
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG should be False in production, and True only for local development
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
+# Add your live frontend and backend URLs here for security
 ALLOWED_HOSTS = [
     'backend-production-b798.up.railway.app',  # Your backend URL
-    'https://crypto-tracker-v1.up.railway.app', # Your frontend URL
+    'crypto-tracker-v1.up.railway.app',      # Your frontend URL
     'localhost',
     '127.0.0.1',
 ]
 
-# Application definition
 
+# --- APPLICATION DEFINITION ---
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -41,40 +33,34 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'core',
-    'channels', # Add channels
-    
+    'channels',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # Add this line
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Handles cross-origin requests
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-
 ]
 
-# Added to resolve Cross-Origin-Opener-Policy issues for Firebase login popup
-SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
-
-# Stripe Configuration
-STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
-STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
-
-CORS_ALLOWED_ORIGINS = [
-    os.environ.get('FRONTEND_URL'), # The live frontend URL from Railway variables
-    "http://localhost:3000",      # The local frontend URL for development
+# --- CORS SETTINGS ---
+# This allows your frontend to make requests to your backend
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.up\.railway\.app$",
+    r"^http://localhost:3000$",
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+
+# --- URLS, TEMPLATES, and APPLICATIONS ---
 ROOT_URLCONF = 'project_config.urls'
 WSGI_APPLICATION = 'project_config.wsgi.application'
-# Add ASGI Application
 ASGI_APPLICATION = 'project_config.asgi.application'
-
 
 TEMPLATES = [
     {
@@ -92,85 +78,45 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'project_config.wsgi.application'
-# Add ASGI Application
-ASGI_APPLICATION = 'project_config.asgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+# --- DATABASE CONFIGURATION ---
 DATABASES = {
     'default': dj_database_url.config(conn_max_age=600, ssl_require=False)
-
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'binance', # The name you gave the server connection.
-    #     'USER': 'postgres', # The default username shown in the connection settings.
-    #     'PASSWORD': '', # Since no password is shown in the image, this field is left blank.
-    #     'HOST': 'localhost', # The hostname/address shown in the connection settings.
-    #     'PORT': '5432', # The port number shown in the connection settings.
-        
-    # }
 }
 
+
+# --- REST FRAMEWORK and AUTHENTICATION ---
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ]
 }
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    { 'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator', },
+    { 'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', },
+    { 'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator', },
+    { 'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator', },
 ]
+AUTH_USER_MODEL = 'core.User'
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
+# --- INTERNATIONALIZATION and STATIC FILES ---
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Email configuration for SMTP
-# You will fill these out later when you set up email sending
+
+# --- EMAIL and STRIPE CONFIGURATION ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-
 FRONTEND_URL = os.environ.get('FRONTEND_URL')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 
-# Add this line to specify your custom user model
-AUTH_USER_MODEL = 'core.User'
