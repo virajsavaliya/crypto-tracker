@@ -29,8 +29,9 @@ export default function LoginWithTokenPage() {
           body: JSON.stringify({ token }),
         });
 
-        const data = await res.json();
-        if (res.ok) {
+        // FIX: Changed 'res' to 'response'
+        const data = await response.json();
+        if (response.ok) {
           localStorage.setItem('user', JSON.stringify({
             first_name: data.first_name,
             last_name: data.last_name,
