@@ -49,9 +49,10 @@ if not firebase_admin._apps:
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 stripe_price_ids = {
-    'basic': 'price_1S2resDM44PIrnngv05qDmcp',
-    'enterprise': 'price_1S2rfMDM44PIrnngUeig13MG',
+    'basic': os.environ.get('STRIPE_PRICE_ID_BASIC'),
+    'enterprise': os.environ.get('STRIPE_PRICE_ID_ENTERPRISE'),
 }
+
 
 class RegisterView(APIView):
     def post(self, request):
