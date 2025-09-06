@@ -7,6 +7,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 ALLOWED_HOSTS = ['*'] # This is simple for now, you can make it more secure later
 
+
+# DEBUG should be False in production, and True only for local development
+# We read a string 'True' or 'False' and convert it to a boolean
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -16,8 +21,12 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = [
+    'backend-production-b798.up.railway.app',  # Your backend URL
+    'frontend-production-b1498.up.railway.app', # Your frontend URL
+    'localhost',
+    '127.0.0.1',
+]
 
 # Application definition
 
@@ -57,10 +66,15 @@ STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    os.environ.get('FRONTEND_URL'), # The live frontend URL from Railway variables
+    "http://localhost:3000",      # The local frontend URL for development
 ]
 CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'project_config.urls'
+WSGI_APPLICATION = 'project_config.wsgi.application'
+# Add ASGI Application
+ASGI_APPLICATION = 'project_config.asgi.application'
+
 
 TEMPLATES = [
     {
@@ -87,19 +101,18 @@ ASGI_APPLICATION = 'project_config.asgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-        # 'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+    'default': dj_database_url.config(conn_max_age=600, ssl_require=False)
 
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'binance', # The name you gave the server connection.
-        'USER': 'postgres', # The default username shown in the connection settings.
-        'PASSWORD': '', # Since no password is shown in the image, this field is left blank.
-        'HOST': 'localhost', # The hostname/address shown in the connection settings.
-        'PORT': '5432', # The port number shown in the connection settings.
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.postgresql',
+    #     'NAME': 'binance', # The name you gave the server connection.
+    #     'USER': 'postgres', # The default username shown in the connection settings.
+    #     'PASSWORD': '', # Since no password is shown in the image, this field is left blank.
+    #     'HOST': 'localhost', # The hostname/address shown in the connection settings.
+    #     'PORT': '5432', # The port number shown in the connection settings.
         
-    }
+    # }
 }
-
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
