@@ -214,6 +214,9 @@ export default function DashboardPage() {
     }
     const userData = JSON.parse(user);
     setUserName(userData.first_name);
+
+    let intervalId: NodeJS.Timeout | null = null;
+
     const fetchUserDetails = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`, {
@@ -227,19 +230,27 @@ export default function DashboardPage() {
           setPlan(userDetails.subscription_plan);
           localStorage.setItem('is_premium_user', userDetails.is_premium_user.toString());
           localStorage.setItem('user_plan', userDetails.subscription_plan);
+
+          // <<-- LOGIC MOVED HERE -->>
+          // After confirming user's plan, set interval ONLY for premium users
+          if (userDetails.is_premium_user) {
+            intervalId = setInterval(fetchBackendData, 10000); // 10 seconds for paid users
+          }
         }
       } catch (error) {
         console.error('Failed to fetch user details:', error);
         setPlan('free');
       }
     };
+
     fetchUserDetails();
-    fetchBackendData();
+    fetchBackendData(); // Fetch initial data for everyone
 
-    const intervalId = setInterval(fetchBackendData, 3000);
-
+    // Cleanup function to clear the interval when the component unmounts
     return () => {
-      clearInterval(intervalId);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [fetchBackendData]);
 

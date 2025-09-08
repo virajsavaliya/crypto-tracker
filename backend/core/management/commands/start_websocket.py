@@ -70,53 +70,80 @@ class Command(BaseCommand):
                 self.kline_history[symbol] = klines
         self.stdout.write(self.style.SUCCESS("Historical pre-fetch complete. All calculations are now active."))
 
+    # --- MODIFICATION 1: ADDED A "FOREVER" LOOP ---
+    # This ensures the entire process restarts if it ever crashes completely.
     def handle(self, *args, **options):
-        try:
-            asyncio.run(self.main_logic())
-        except KeyboardInterrupt:
-            self.stdout.write(self.style.SUCCESS('Process stopped manually.'))
+        while True:
+            try:
+                self.stdout.write(self.style.SUCCESS('Starting main websocket logic...'))
+                asyncio.run(self.main_logic())
+            except KeyboardInterrupt:
+                self.stdout.write(self.style.SUCCESS('Process stopped manually.'))
+                break
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Main loop crashed with error: {e}"))
+                self.stdout.write(self.style.WARNING("Restarting in 10 seconds..."))
+                time.sleep(10)
+
 
     async def main_logic(self):
         symbols = self.get_all_symbols()
         if not symbols:
+            self.stdout.write(self.style.WARNING("No symbols fetched, will retry in 30 seconds."))
+            await asyncio.sleep(30)
             return
 
         self.prefetch_historical_data(symbols)
 
         kline_streams = [f"{symbol}@kline_1m" for symbol in symbols]
-        uri = f"wss://stream.binance.com:9443/stream?streams={'/'.join(['!ticker@arr'] + kline_streams[:200])}"
+        # Limiting streams to avoid connection issues, Binance has limits.
+        # You may need multiple workers for all symbols.
+        uri = f"wss://stream.binance.com:9443/stream?streams={'/'.join(['!ticker@arr'] + kline_streams[:950])}"
+
 
         receiver_task = asyncio.create_task(self.receive_websocket_data(uri))
         saver_task = asyncio.create_task(self.process_and_save_data_periodically())
         await asyncio.gather(receiver_task, saver_task)
 
+    # --- MODIFICATION 2: IMPROVED RECONNECTION AND ERROR HANDLING ---
     async def receive_websocket_data(self, uri):
         while True:
             try:
                 async with websockets.connect(uri, ping_interval=20, ping_timeout=20) as websocket:
                     self.stdout.write(self.style.SUCCESS('WebSocket connected and receiving live data.'))
                     async for message in websocket:
-                        data = json.loads(message)
-                        stream_type, payload = data.get('stream'), data.get('data')
-                        if not stream_type or not payload:
-                            continue
+                        try:
+                            data = json.loads(message)
+                            stream_type, payload = data.get('stream'), data.get('data')
+                            if not stream_type or not payload:
+                                continue
 
-                        if stream_type == '!ticker@arr':
-                            for ticker in payload:
-                                if symbol := ticker.get('s'):
-                                    self.latest_data_from_stream[symbol.lower()] = ticker
-                        elif '@kline_1m' in stream_type:
-                            if (symbol := payload.get('s')) and (kline := payload.get('k')) and kline.get('x'):
-                                if symbol not in self.kline_history:
-                                    self.kline_history[symbol] = []
-                                self.kline_history[symbol].append(kline)
+                            if stream_type == '!ticker@arr':
+                                for ticker in payload:
+                                    if symbol := ticker.get('s'):
+                                        self.latest_data_from_stream[symbol.lower()] = ticker
+                            elif '@kline_1m' in stream_type:
+                                if (symbol := payload.get('s')) and (kline := payload.get('k')) and kline.get('x'):
+                                    # Ensure symbol is lowercase for consistency
+                                    symbol_lower = symbol.lower()
+                                    if symbol_lower not in self.kline_history:
+                                        self.kline_history[symbol_lower] = []
+                                    self.kline_history[symbol_lower].append(kline)
+                        except json.JSONDecodeError:
+                            self.stdout.write(self.style.WARNING("Could not decode JSON from websocket message."))
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f"Error processing websocket message: {e}"))
+
+            except websockets.exceptions.ConnectionClosed as e:
+                self.stdout.write(self.style.ERROR(f"WebSocket connection closed: {e}. Reconnecting in 5 seconds..."))
+                await asyncio.sleep(5)
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"WebSocket error: {e}, reconnecting..."))
+                self.stdout.write(self.style.ERROR(f"An unexpected WebSocket error occurred: {e}. Reconnecting in 5 seconds..."))
                 await asyncio.sleep(5)
 
     async def process_and_save_data_periodically(self):
         while True:
-            await asyncio.sleep(3)
+            await asyncio.sleep(3) # This is your 3-second database update interval
             data_batch = self.latest_data_from_stream
             self.latest_data_from_stream = {}
             if not data_batch:
@@ -138,8 +165,11 @@ class Command(BaseCommand):
         klines = np.array([
             (float(k['t']), float(k['o']), float(k['h']),
              float(k['l']), float(k['c']), float(k['v']), float(k['q']))
-            for k in history
+            for k in history if k.get('q') is not None
         ], dtype=dtype)
+        
+        if len(klines) == 0:
+            return {}
 
         now_ms = time.time() * 1000
         intervals = {'m1': 1, 'm2': 2, 'm3': 3, 'm5': 5, 'm10': 10, 'm15': 15, 'm60': 60}
@@ -182,7 +212,11 @@ class Command(BaseCommand):
                 if len(gains) < periods or len(losses) < periods:
                     continue
                 avg_gain, avg_loss = np.mean(gains[:periods]), np.mean(losses[:periods])
-                metrics[f'rsi_{key}'] = 100 - (100 / (1 + (avg_gain / avg_loss))) if avg_loss > 0 else 100
+                if avg_loss > 0:
+                    rs = avg_gain / avg_loss
+                    metrics[f'rsi_{key}'] = 100 - (100 / (1 + rs))
+                else:
+                    metrics[f'rsi_{key}'] = 100
         return metrics
 
     @database_sync_to_async
@@ -192,12 +226,9 @@ class Command(BaseCommand):
 
         for attempt in range(MAX_RETRIES):
             try:
-                # Fetch existing records in one query
                 existing_records = {obj.symbol: obj for obj in CryptoData.objects.filter(symbol__in=symbols)}
-
                 to_create = []
                 to_update = []
-
                 all_fields = [f.name for f in CryptoData._meta.get_fields() if f.name != 'id']
 
                 for symbol, data in data_batch.items():
@@ -211,37 +242,44 @@ class Command(BaseCommand):
                         'ask_price': float(data.get('a', 0)),
                     }
                     live_data['spread'] = live_data.get('ask_price', 0) - live_data.get('bid_price', 0)
-
                     calculated_metrics = self.calculate_metrics_from_history(symbol)
                     full_payload = {**live_data, **calculated_metrics}
 
                     if symbol in existing_records:
                         record = existing_records[symbol]
                         for key, value in full_payload.items():
-                            setattr(record, key, value)
+                            if key in all_fields:
+                                setattr(record, key, value)
                         to_update.append(record)
                     else:
-                        new_record = CryptoData(symbol=symbol, **full_payload)
+                        new_record = CryptoData(symbol=symbol)
+                        for key, value in full_payload.items():
+                             if key in all_fields:
+                                setattr(new_record, key, value)
                         to_create.append(new_record)
 
-                # Bulk create in chunks
                 if to_create:
                     for i in range(0, len(to_create), BATCH_SIZE):
-                        CryptoData.objects.bulk_create(to_create[i:i + BATCH_SIZE])
+                        CryptoData.objects.bulk_create(to_create[i:i + BATCH_SIZE], ignore_conflicts=True)
 
-                # Bulk update in chunks
                 if to_update:
+                    update_fields = [f for f in all_fields if f != 'symbol']
                     for i in range(0, len(to_update), BATCH_SIZE):
                         with transaction.atomic():
-                            CryptoData.objects.bulk_update(to_update[i:i + BATCH_SIZE], all_fields)
-
-                return  # success → exit retry loop
-
+                            CryptoData.objects.bulk_update(to_update[i:i + BATCH_SIZE], update_fields)
+                return
             except OperationalError as e:
+                self.stdout.write(self.style.ERROR(f"Database error on attempt {attempt + 1}: {e}"))
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(RETRY_DELAY)
                     continue
-                raise e
+                else:
+                    self.stdout.write(self.style.ERROR("Max retries reached. Database operation failed."))
+                    raise e
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"An unexpected error occurred in bulk_update_database: {e}"))
+                break
+
 
     def cleanup_old_klines(self):
         cutoff_ms = (time.time() - (150 * 60)) * 1000
