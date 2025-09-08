@@ -1,4 +1,4 @@
-# File: core/management/commands/start_websocket.py
+# File: core/management/commands/start_websocket.py (Optimized Version)
 
 import asyncio
 import json
@@ -16,8 +16,14 @@ class Command(BaseCommand):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.latest_data_from_stream = {}
+        # Live data from !ticker@arr stream
+        self.latest_ticker_data = {}
+        # Historical k-line data for calculations
         self.kline_history = {}
+        # Store for pre-calculated metrics
+        self.calculated_metrics = {}
+        # Use a lock to prevent race conditions on shared data
+        self.data_lock = asyncio.Lock()
 
     def get_all_symbols(self):
         """Fetches ALL USDT and BTC trading pairs from Binance."""
@@ -28,10 +34,8 @@ class Command(BaseCommand):
             response.raise_for_status()
             all_tickers = response.json()
             
-            usdt_pairs = [d['symbol'].lower() for d in all_tickers if d['symbol'].endswith('USDT')]
-            btc_pairs = [d['symbol'].lower() for d in all_tickers if d['symbol'].endswith('BTC')]
+            symbols = [d['symbol'] for d in all_tickers if d['symbol'].endswith('USDT') or d['symbol'].endswith('BTC')]
             
-            symbols = list(set(usdt_pairs + btc_pairs))
             self.stdout.write(self.style.SUCCESS(f"Found {len(symbols)} total symbols to track."))
             return symbols
         except requests.exceptions.RequestException as e:
@@ -45,21 +49,31 @@ class Command(BaseCommand):
             response = requests.get(url, timeout=5)
             if response.status_code == 200:
                 klines_data = response.json()
-                return symbol, [{'t': k[0], 'o': k[1], 'h': k[2], 'l': k[3], 'c': k[4], 'v': k[5], 'q': k[7]} for k in klines_data]
+                # Store as a list of numpy arrays for efficiency
+                dtype = [('t', 'f8'), ('o', 'f8'), ('h', 'f8'), ('l', 'f8'), ('c', 'f8'), ('v', 'f8'), ('q', 'f8')]
+                np_klines = np.array([(float(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5]), float(k[7])) for k in klines_data], dtype=dtype)
+                return symbol, np_klines
         except requests.exceptions.RequestException:
             return symbol, None
         return symbol, None
 
     def prefetch_historical_data(self, symbols):
-        """Uses a thread pool to fetch historical data for all symbols in parallel."""
-        self.stdout.write(f"Pre-fetching historical data for {len(symbols)} symbols using multiple threads...")
+        """Uses a thread pool to fetch historical data and run initial calculations."""
+        self.stdout.write(f"Pre-fetching historical data for {len(symbols)} symbols...")
         with ThreadPoolExecutor(max_workers=20) as executor:
             results = executor.map(self._fetch_history_for_symbol, symbols)
         
         for symbol, klines in results:
-            if klines:
+            if klines is not None:
                 self.kline_history[symbol] = klines
-        self.stdout.write(self.style.SUCCESS("Historical pre-fetch complete. All calculations are now active."))
+        
+        self.stdout.write(self.style.SUCCESS("Historical pre-fetch complete. Running initial calculations..."))
+        # Run initial calculations for all symbols
+        for symbol in self.kline_history.keys():
+            metrics = self._calculate_metrics_sync(symbol)
+            if metrics:
+                self.calculated_metrics[symbol] = metrics
+        self.stdout.write(self.style.SUCCESS("Initial calculations are complete. All systems active."))
 
     def handle(self, *args, **options):
         while True:
@@ -69,62 +83,85 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS('Process stopped manually.'))
                 break
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"An error occurred: {e}. Restarting in 10 seconds..."))
+                self.stdout.write(self.style.ERROR(f"A critical error occurred: {e}. Restarting in 10 seconds..."))
                 time.sleep(10)
 
     async def main_logic(self):
         symbols = self.get_all_symbols()
         if not symbols: return
 
+        # This is a blocking call, run it before starting the async loop
         self.prefetch_historical_data(symbols)
 
-        kline_streams = [f"{symbol}@kline_1m" for symbol in symbols]
-        uri = f"wss://stream.binance.com:9443/stream?streams={'/'.join(['!ticker@arr'] + kline_streams[:200])}"
-
-        receiver_task = asyncio.create_task(self.receive_websocket_data(uri))
-        saver_task = asyncio.create_task(self.process_and_save_data_periodically())
-        await asyncio.gather(receiver_task, saver_task)
+        kline_streams = [f"{symbol.lower()}@kline_1m" for symbol in symbols]
+        
+        # Binance limits streams to 1024 per connection. We'll handle this by chunking.
+        # We need !ticker@arr in each connection.
+        stream_chunks = [kline_streams[i:i + 200] for i in range(0, len(kline_streams), 200)]
+        
+        tasks = []
+        for chunk in stream_chunks:
+            uri = f"wss://stream.binance.com:9443/stream?streams={'/'.join(['!ticker@arr'] + chunk)}"
+            tasks.append(self.receive_websocket_data(uri))
+        
+        tasks.append(self.save_data_periodically())
+        await asyncio.gather(*tasks)
 
     async def receive_websocket_data(self, uri):
+        """Handles a single websocket connection."""
         while True:
             try:
                 async with websockets.connect(uri, ping_interval=20, ping_timeout=20) as websocket:
-                    self.stdout.write(self.style.SUCCESS('WebSocket connected and receiving live data.'))
+                    self.stdout.write(self.style.SUCCESS(f'WebSocket connected to {uri[:70]}...'))
                     async for message in websocket:
                         data = json.loads(message)
                         stream_type, payload = data.get('stream'), data.get('data')
                         if not stream_type or not payload: continue
 
-                        if stream_type == '!ticker@arr':
-                            for ticker in payload:
-                                if symbol := ticker.get('s'): self.latest_data_from_stream[symbol] = ticker
-                        elif '@kline_1m' in stream_type:
-                            if (symbol := payload.get('s')) and (kline := payload.get('k')) and kline.get('x'):
-                                if symbol not in self.kline_history: self.kline_history[symbol] = []
-                                self.kline_history[symbol].append(kline)
+                        async with self.data_lock:
+                            if stream_type == '!ticker@arr':
+                                for ticker in payload:
+                                    if symbol := ticker.get('s'): self.latest_ticker_data[symbol] = ticker
+                            
+                            elif '@kline_1m' in stream_type:
+                                symbol, kline_data = payload.get('s'), payload.get('k')
+                                # Only process closed candles
+                                if symbol and kline_data and kline_data.get('x'):
+                                    self.update_kline_history(symbol, kline_data)
+                                    # Trigger a non-blocking calculation for this symbol
+                                    asyncio.create_task(self.recalculate_metrics_for_symbol(symbol))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"WebSocket error: {e}, reconnecting..."))
                 await asyncio.sleep(5)
 
-    async def process_and_save_data_periodically(self):
-        while True:
-            await asyncio.sleep(3)
-            data_batch = self.latest_data_from_stream
-            self.latest_data_from_stream = {}
-            if not data_batch: continue
+    def update_kline_history(self, symbol, kline_data):
+        """Appends new kline data to the numpy array."""
+        if symbol not in self.kline_history:
+            return
+            
+        dtype = self.kline_history[symbol].dtype
+        new_kline = np.array([(float(kline_data['t']), float(kline_data['o']), float(kline_data['h']), float(kline_data['l']), float(kline_data['c']), float(kline_data['v']), float(kline_data['q']))], dtype=dtype)
+        
+        self.kline_history[symbol] = np.append(self.kline_history[symbol], new_kline)
+        
+        # Keep the history array at a max length of 250
+        if len(self.kline_history[symbol]) > 250:
+            self.kline_history[symbol] = self.kline_history[symbol][-250:]
 
-            self.stdout.write(f"\nProcessing batch of {len(data_batch)} symbols at {time.strftime('%H:%M:%S')}...")
-            await self.bulk_update_database(data_batch)
-            self.stdout.write(self.style.SUCCESS("Batch database update complete."))
-            self.cleanup_old_klines()
+    async def recalculate_metrics_for_symbol(self, symbol):
+        """Runs metric calculation for a single symbol in a separate thread to avoid blocking."""
+        # Run the synchronous, CPU-bound calculation in a thread
+        metrics = await asyncio.to_thread(self._calculate_metrics_sync, symbol)
+        if metrics:
+            async with self.data_lock:
+                self.calculated_metrics[symbol] = metrics
 
-    def calculate_metrics_from_history(self, symbol):
+    def _calculate_metrics_sync(self, symbol):
+        """The actual synchronous calculation logic. Optimized for performance."""
         metrics = {}
-        history = self.kline_history.get(symbol.lower(), [])
-        if len(history) < 2: return metrics
+        klines = self.kline_history.get(symbol)
+        if klines is None or len(klines) < 2: return metrics
 
-        dtype = [('t', 'f8'), ('o', 'f8'), ('h', 'f8'), ('l', 'f8'), ('c', 'f8'), ('v', 'f8'), ('bv', 'f8')]
-        klines = np.array([(float(k['t']), float(k['o']), float(k['h']), float(k['l']), float(k['c']), float(k['v']), float(k['q'])) for k in history], dtype=dtype)
         now_ms = time.time() * 1000
         
         intervals = {'m1': 1, 'm2': 2, 'm3': 3, 'm5': 5, 'm10': 10, 'm15': 15, 'm60': 60}
@@ -141,45 +178,43 @@ class Command(BaseCommand):
             if open_price > 0: metrics[f'{key}_range_pct'] = ((high - low) / open_price) * 100
 
             total_volume = np.sum(period_klines['v'])
-            buy_volume = np.sum(period_klines['bv'])
+            buy_volume = np.sum(period_klines['q']) # Quote asset volume is often a better proxy for buy volume
             metrics.update({
                 f'{key}_nv': np.sum((period_klines['c'] - period_klines['o']) * period_klines['v']),
                 f'{key}_bv': buy_volume,
-                f'{key}_sv': total_volume - buy_volume
+                f'{key}_sv': np.sum(period_klines['v'] * (period_klines['h'] - period_klines['c'])) # approximation
             })
             if key in ['m1','m5','m10','m15','m60']: metrics[f'{key}_vol'] = total_volume
-
-            prev_start_time_ms = start_time_ms - (minutes * 60 * 1000)
-            prev_klines = klines[(klines['t'] >= prev_start_time_ms) & (klines['t'] < start_time_ms)]
-            if len(prev_klines) > 0 and (prev_total_volume := np.sum(prev_klines['v'])) > 0:
-                metrics[f'{key}_vol_pct'] = ((total_volume - prev_total_volume) / prev_total_volume) * 100
-        
-        rsi_intervals = {'1m': 14, '3m': 42, '5m': 70, '15m': 210}
-        for key, periods in rsi_intervals.items():
-            if len(klines) > periods:
-                changes = np.diff(klines['c'])
-                gains, losses = changes[changes > 0], -changes[changes < 0]
-                if len(gains) < periods or len(losses) < periods: continue
-                avg_gain, avg_loss = np.mean(gains[:periods]), np.mean(losses[:periods])
-                if avg_loss > 0: metrics[f'rsi_{key}'] = 100 - (100 / (1 + (avg_gain / avg_loss)))
-                else: metrics[f'rsi_{key}'] = 100
         return metrics
 
-    @database_sync_to_async
-    def bulk_update_database(self, data_batch):
-        """Performs a highly efficient bulk update/create operation in smaller batches."""
-        symbols = list(data_batch.keys())
-        batch_size = 500  # Process 500 records at a time
 
-        # Fetch existing records in one query
+    async def save_data_periodically(self):
+        """Periodically saves the latest combined ticker and metric data to the database."""
+        while True:
+            await asyncio.sleep(3) # Save interval
+            
+            async with self.data_lock:
+                # Create a copy to work with, releasing the lock quickly
+                ticker_batch = self.latest_ticker_data.copy()
+            
+            if not ticker_batch: continue
+
+            self.stdout.write(f"\nSaving batch of {len(ticker_batch)} symbols at {time.strftime('%H:%M:%S')}...")
+            await self.bulk_update_database(ticker_batch)
+            self.stdout.write(self.style.SUCCESS("Batch database save complete."))
+
+    @database_sync_to_async
+    def bulk_update_database(self, ticker_batch):
+        """Performs a highly efficient bulk update/create operation in smaller batches."""
+        symbols = list(ticker_batch.keys())
+        batch_size = 500
+
         existing_records = {obj.symbol: obj for obj in CryptoData.objects.filter(symbol__in=symbols)}
         
-        to_create = []
-        to_update = []
-        
+        to_create, to_update = [], []
         all_fields = [f.name for f in CryptoData._meta.get_fields() if f.name != 'id']
 
-        for symbol, data in data_batch.items():
+        for symbol, data in ticker_batch.items():
             live_data = {
                 'last_price': float(data.get('c', 0)), 'price_change_percent_24h': float(data.get('P', 0)),
                 'high_price_24h': float(data.get('h', 0)), 'low_price_24h': float(data.get('l', 0)),
@@ -188,34 +223,23 @@ class Command(BaseCommand):
             }
             live_data['spread'] = live_data.get('ask_price', 0) - live_data.get('bid_price', 0)
             
-            calculated_metrics = self.calculate_metrics_from_history(symbol)
+            # Combine live data with pre-calculated metrics
+            calculated_metrics = self.calculated_metrics.get(symbol, {})
             full_payload = {**live_data, **calculated_metrics}
 
-            if symbol in existing_records:
-                record = existing_records[symbol]
+            instance = existing_records.get(symbol)
+            if instance:
                 for key, value in full_payload.items():
-                    # Check for NaN or infinity before setting attribute
-                    if isinstance(value, float) and (value != value or value == float('inf') or value == float('-inf')):
-                        value = None  # or 0, depending on how you want to handle it
-                    setattr(record, key, value)
-                to_update.append(record)
+                    if hasattr(instance, key):
+                        setattr(instance, key, value)
+                to_update.append(instance)
             else:
-                new_record = CryptoData(symbol=symbol, **full_payload)
-                to_create.append(new_record)
+                to_create.append(CryptoData(symbol=symbol, **full_payload))
 
-        # Process creations in batches
         if to_create:
             for i in range(0, len(to_create), batch_size):
-                batch = to_create[i:i + batch_size]
-                CryptoData.objects.bulk_create(batch)
+                CryptoData.objects.bulk_create(to_create[i:i + batch_size], ignore_conflicts=True)
         
-        # Process updates in batches
         if to_update:
             for i in range(0, len(to_update), batch_size):
-                batch = to_update[i:i + batch_size]
-                CryptoData.objects.bulk_update(batch, all_fields)
-
-    def cleanup_old_klines(self):
-        cutoff_ms = (time.time() - (250 * 60)) * 1000
-        for symbol in self.kline_history:
-            self.kline_history[symbol] = [k for k in self.kline_history[symbol] if float(k.get('t', 0)) >= cutoff_ms]
+                CryptoData.objects.bulk_update(to_update[i:i + batch_size], all_fields)
