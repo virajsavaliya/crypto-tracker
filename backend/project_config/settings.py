@@ -1,9 +1,13 @@
 from pathlib import Path
 import os
 import dj_database_url
+from dotenv import load_dotenv # Add this import
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file for local development
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # --- SECURITY SETTINGS ---
 # Load secrets from environment variables
@@ -44,7 +48,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware', # Corrected typo here
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -79,9 +83,33 @@ TEMPLATES = [
 ]
 
 # --- DATABASE CONFIGURATION ---
-DATABASES = {
-    'default': dj_database_url.config(conn_max_age=600, ssl_require=False)
-}
+# Use Railway's DATABASE_URL in production, but fall back to local settings for development
+if 'DATABASE_URL' in os.environ:
+    DATABASES = {
+        'default': dj_database_url.config(conn_max_age=600, ssl_require=False)
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv("DB_NAME"),
+            'USER': os.getenv("DB_USER"),
+            'PASSWORD': os.getenv("DB_PASSWORD"),
+            'CONN_MAX_AGE': 60,   # keep connection alive & auto-reconnect every 60s
+            'HOST': os.getenv("DB_HOST"),
+            'PORT': os.getenv("DB_PORT"),
+        }
+    }
+    # DATABASES = {
+    #     'default': {
+    #         'ENGINE': 'django.db.backends.postgresql',
+    #         'NAME': 'binance',
+    #         'USER': 'postgres',
+    #         'PASSWORD': '',
+    #         'HOST': 'localhost',
+    #         'PORT': '5432',
+    #     }
+    # }
 
 
 # --- REST FRAMEWORK and AUTHENTICATION ---

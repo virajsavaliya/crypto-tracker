@@ -1,7 +1,6 @@
 # File: core/views.py
-
 import os
-import json 
+import json
 from django.conf import settings
 from django.core.mail import send_mail
 from rest_framework import status
@@ -17,32 +16,31 @@ import stripe
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 
-from .models import User, Alert, Payment, CryptoData
+from .models import User, Alert, Payment, CryptoData, FavoriteCrypto
 from .serializers import (
-    RegisterSerializer, LoginSerializer, LoginWithTokenSerializer, 
+    RegisterSerializer, LoginSerializer, LoginWithTokenSerializer,
     UserSerializer, AlertSerializer, PaymentSerializer,
     CryptoDataSerializer, CryptoDataFreeSerializer, FavoriteCryptoSerializer
 )
-from .models import User, Alert, Payment, CryptoData, FavoriteCrypto # Add FavoriteCrypto
-
 
 # --- Firebase Admin SDK Initialization ---
 private_key = os.environ.get("FIREBASE_PRIVATE_KEY", "").replace('\\n', '\n')
 
-cred = credentials.Certificate({
+cred_dict = {
   "type": "service_account",
   "project_id": "file-sharing-app-c63a0",
   "private_key_id": "82461d4f111c13496741bef3173b76a65e9ad993",
   "private_key": private_key,
-      "client_email": "firebase-adminsdk-5oc6t@file-sharing-app-c63a0.iam.gserviceaccount.com",
+  "client_email": "firebase-adminsdk-5oc6t@file-sharing-app-c63a0.iam.gserviceaccount.com",
   "client_id": "114923044052820733108",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-5oc6t%40file-sharing-app-c63a0.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
-})
+}
 cred = credentials.Certificate(cred_dict)
+
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
@@ -52,7 +50,6 @@ stripe_price_ids = {
     'basic': os.environ.get('STRIPE_PRICE_ID_BASIC'),
     'enterprise': os.environ.get('STRIPE_PRICE_ID_ENTERPRISE'),
 }
-
 
 class RegisterView(APIView):
     def post(self, request):
@@ -103,7 +100,7 @@ class RequestLoginTokenView(APIView):
             except User.DoesNotExist:
                 return Response({'error': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
 class LoginWithTokenView(APIView):
     def post(self, request):
         serializer = LoginWithTokenSerializer(data=request.data)
@@ -137,8 +134,6 @@ class ActivateAccountView(APIView):
             return Response({'message': 'Invalid activation link or account already activated.'}, status=status.HTTP_400_BAD_REQUEST)
 
 class GoogleLoginView(APIView):
-    # These lines tell Django REST Framework not to require a default
-    # user token for this specific login endpoint.
     authentication_classes = []
     permission_classes = []
 
@@ -203,7 +198,7 @@ class UserUpdateView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
 class UpgradePlanView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request):
@@ -233,11 +228,11 @@ class StripeWebhookView(APIView):
         event = None
         try:
             event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
-        except ValueError as e: 
+        except ValueError as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        except stripe.error.SignatureVerificationError as e: 
+        except stripe.error.SignatureVerificationError as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-            
+
         if event['type'] == 'checkout.session.completed':
             session = event['data']['object']
             client_reference_id = session.get('client_reference_id')
@@ -268,7 +263,7 @@ class PaymentHistoryView(APIView):
         payments = Payment.objects.filter(user=request.user)
         serializer = PaymentSerializer(payments, many=True)
         return Response(serializer.data)
-        
+
 class AlertsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -290,53 +285,38 @@ class AlertsView(APIView):
             return Response({'error': 'Alert not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 class BinanceDataView(APIView):
-    """
-    This view serves the cryptocurrency data. It checks if the user is a premium
-    member and returns the appropriate dataset.
-    """
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
             user = request.user
-            # Order data by the most traded coins first
             crypto_data = CryptoData.objects.all().order_by('-quote_volume_24h')
 
-            # SERVER-SIDE CHECK: Choose the serializer based on user's subscription
             if user.is_premium_user:
-                # Premium users get all data fields
                 serializer = CryptoDataSerializer(crypto_data, many=True)
             else:
-                # Free users get only the limited, public-safe data
                 serializer = CryptoDataFreeSerializer(crypto_data, many=True)
-            
+
             return Response(serializer.data, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# --- NEW VIEW FOR MANAGING FAVORITES ---
 class FavoriteCryptoView(APIView):
-    """
-    Allows users to manage their list of favorite cryptocurrencies.
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Returns a list of the user's favorite symbols."""
         favorites = FavoriteCrypto.objects.filter(user=request.user)
         serializer = FavoriteCryptoSerializer(favorites, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        """Adds a new symbol to the user's favorites."""
         symbol = request.data.get('symbol')
         if not symbol:
             return Response({'error': 'Symbol is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Using get_or_create to prevent duplicates
+
         favorite, created = FavoriteCrypto.objects.get_or_create(user=request.user, symbol=symbol)
-        
+
         if created:
             serializer = FavoriteCryptoSerializer(favorite)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -344,7 +324,6 @@ class FavoriteCryptoView(APIView):
             return Response({'message': 'Symbol already in favorites.'}, status=status.HTTP_200_OK)
 
     def delete(self, request):
-        """Removes a symbol from the user's favorites."""
         symbol = request.data.get('symbol')
         if not symbol:
             return Response({'error': 'Symbol is required.'}, status=status.HTTP_400_BAD_REQUEST)
