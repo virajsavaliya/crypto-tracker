@@ -1,2 +1,3 @@
-web: gunicorn project_config.wsgi
-worker: python manage.py start_websocket
+web: gunicorn project_config.wsgi --log-file -
+websocket: python manage.py start_websocket
+worker: celery -A project_config worker --loglevel=info

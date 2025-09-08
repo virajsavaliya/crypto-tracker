@@ -23,6 +23,9 @@ from .serializers import (
     CryptoDataSerializer, CryptoDataFreeSerializer, FavoriteCryptoSerializer
 )
 
+# --- NEW: Import the tasks ---
+from .tasks import send_activation_email_task, send_login_token_email_task
+
 # --- Firebase Admin SDK Initialization ---
 private_key = os.environ.get("FIREBASE_PRIVATE_KEY", "").replace('\\n', '\n')
 
@@ -69,12 +72,10 @@ class RegisterView(APIView):
                 mobile_number=mobile_number, activation_token=token,
                 subscription_plan='free', is_premium_user=False
             )
-            activation_link = f"{settings.FRONTEND_URL}/activate/{token}/"
-            subject = 'Activate Your Account'
-            message = f'Hi {first_name},\n\nPlease click on the link to activate your account: {activation_link}'
-            from_email = settings.EMAIL_HOST_USER
-            recipient_list = [email]
-            send_mail(subject, message, from_email, recipient_list)
+
+            # --- CHANGE: Call the async task instead of blocking send_mail ---
+            send_activation_email_task.delay(email, first_name, token)
+
             return Response({'message': 'User registered successfully. An activation email has been sent.'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -90,12 +91,10 @@ class RequestLoginTokenView(APIView):
                 login_token = str(uuid.uuid4())
                 user.login_token = login_token
                 user.save()
-                login_link = f"{settings.FRONTEND_URL}/login/{login_token}/"
-                subject = 'Your Login Link'
-                message = f'Hi {user.first_name},\n\nPlease click on the link to log in: {login_link}'
-                from_email = settings.EMAIL_HOST_USER
-                recipient_list = [email]
-                send_mail(subject, message, from_email, recipient_list)
+
+                # --- CHANGE: Call the async task instead of blocking send_mail ---
+                send_login_token_email_task.delay(email, user.first_name, login_token)
+
                 return Response({'message': 'A login link has been sent to your email.'}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 return Response({'error': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)

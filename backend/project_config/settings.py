@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import dj_database_url
 from dotenv import load_dotenv # Add this import
+from .celery import app as celery_app
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -109,6 +110,16 @@ else:
     #     }
     # }
 
+
+
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_ALWAYS_EAGER = DEBUG # Set to False in production
 
 # --- REST FRAMEWORK and AUTHENTICATION ---
 REST_FRAMEWORK = {
