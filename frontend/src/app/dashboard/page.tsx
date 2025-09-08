@@ -106,6 +106,8 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [symbolFilter, setSymbolFilter] = useState<string[]>([]);
   const [symbolSearch, setSymbolSearch] = useState('');
+  const [priceChanges, setPriceChanges] = useState<{[key: string]: 'up' | 'down' | 'neutral'}>({});
+  const [countdown, setCountdown] = useState(10);
 
   const changeColumns = [
     'price_change_percent_24h', 'm1', 'm2', 'm3', 'm5', 'm10', 'm15', 'm60',
@@ -192,7 +194,32 @@ export default function DashboardPage() {
         return;
       }
       const data: CryptoData[] = await response.json();
-      setCryptoData(data);
+
+      setCryptoData(prevData => {
+        const changes: {[key: string]: 'up' | 'down' | 'neutral'} = {};
+        data.forEach(newItem => {
+          const oldItem = prevData.find(item => item.symbol === newItem.symbol);
+          if (oldItem) {
+            Object.keys(newItem).forEach(key => {
+              if (newItem[key] !== oldItem[key]) {
+                const oldValue = oldItem[key] as number;
+                const newValue = newItem[key] as number;
+                if (typeof newValue === 'number' && typeof oldValue === 'number') {
+                  if (newValue > oldValue) {
+                    changes[`${newItem.symbol}-${key}`] = 'up';
+                  } else if (newValue < oldValue) {
+                    changes[`${newItem.symbol}-${key}`] = 'down';
+                  }
+                }
+              }
+            });
+          }
+        });
+        setPriceChanges(changes);
+        setTimeout(() => setPriceChanges({}), 1000); // Reset after 1 second
+        return data;
+      });
+
       setError(null);
     } catch (err: unknown) {
       console.error(err);
@@ -215,8 +242,6 @@ export default function DashboardPage() {
     const userData = JSON.parse(user);
     setUserName(userData.first_name);
 
-    let intervalId: NodeJS.Timeout | null = null;
-
     const fetchUserDetails = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`, {
@@ -230,12 +255,6 @@ export default function DashboardPage() {
           setPlan(userDetails.subscription_plan);
           localStorage.setItem('is_premium_user', userDetails.is_premium_user.toString());
           localStorage.setItem('user_plan', userDetails.subscription_plan);
-
-          // <<-- LOGIC MOVED HERE -->>
-          // After confirming user's plan, set interval ONLY for premium users
-          if (userDetails.is_premium_user) {
-            intervalId = setInterval(fetchBackendData, 10000); // 10 seconds for paid users
-          }
         }
       } catch (error) {
         console.error('Failed to fetch user details:', error);
@@ -244,15 +263,25 @@ export default function DashboardPage() {
     };
 
     fetchUserDetails();
-    fetchBackendData(); // Fetch initial data for everyone
-
-    // Cleanup function to clear the interval when the component unmounts
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+    fetchBackendData();
   }, [fetchBackendData]);
+
+  useEffect(() => {
+    if (isPremium) {
+      const countdownId = setInterval(() => {
+        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearInterval(countdownId);
+    }
+  }, [isPremium]);
+
+  useEffect(() => {
+    if (isPremium && countdown === 0) {
+      fetchBackendData().then(() => {
+        setCountdown(10);
+      });
+    }
+  }, [isPremium, countdown, fetchBackendData]);
 
   const sortedAndFilteredData = useMemo(() => {
     let filteredData = cryptoData
@@ -429,6 +458,12 @@ export default function DashboardPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              {isPremium && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Next update in {countdown}s</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <DropdownMenu>
@@ -561,7 +596,12 @@ export default function DashboardPage() {
                           {allColumns.filter(col => visibleColumns.has(col.key)).map((col) => (
                             <TableCell
                               key={col.key}
-                              className={cn("px-2 py-2 text-left", col.key === 'symbol' && "min-w-[150px]")}
+                              className={cn(
+                                "px-2 py-2 text-left",
+                                col.key === 'symbol' && "min-w-[150px]",
+                                priceChanges[`${crypto.symbol}-${col.key}`] === 'up' && 'bg-green-100 animate-pulse-green',
+                                priceChanges[`${crypto.symbol}-${col.key}`] === 'down' && 'bg-red-100 animate-pulse-red'
+                              )}
                             >
                               {renderCellContent(col.key, crypto, isPremium)}
                             </TableCell>

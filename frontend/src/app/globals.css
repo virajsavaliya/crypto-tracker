@@ -120,3 +120,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes pulse-green {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: #D1FAE5; }
+}
+
+@keyframes pulse-red {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: #FEE2E2; }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 1s ease-in-out;
+}
+
+.animate-pulse-red {
+  animation: pulse-red 1s ease-in-out;
+}
