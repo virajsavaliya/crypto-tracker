@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic', # Add this line
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
@@ -98,16 +99,6 @@ else:
             'PORT': os.getenv("DB_PORT"),
         }
     }
-    # DATABASES = {
-    #     'default': {
-    #         'ENGINE': 'django.db.backends.postgresql',
-    #         'NAME': 'binance',
-    #         'USER': 'postgres',
-    #         'PASSWORD': '',
-    #         'HOST': 'localhost',
-    #         'PORT': '5432',
-    #     }
-    # }
 
 
 # --- REST FRAMEWORK and AUTHENTICATION ---
@@ -133,6 +124,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # --- EMAIL and STRIPE CONFIGURATION ---
