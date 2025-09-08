@@ -19,5 +19,6 @@ listen --forward-to http://localhost:8000/stripe-webhook/
     
 stripe listen --forward-to localhost:8000/stripe-webhook/
 
-git add .git commit -m "Update frontend to use environment variables for API URLs"
+git add .
+git commit -m "Update run commands"
 git push origin main
