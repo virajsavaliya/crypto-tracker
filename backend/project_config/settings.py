@@ -17,12 +17,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # Add your live frontend and backend URLs here for security
-ALLOWED_HOSTS = [
-    'backend-production-b798.up.railway.app',  # Your backend URL
-    'crypto-tracker-v1.up.railway.app',      # Your frontend URL
-    'localhost',
-    '127.0.0.1',
-]
+ALLOWED_HOSTS = ["*"]
 
 
 # --- APPLICATION DEFINITION ---
