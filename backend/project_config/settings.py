@@ -145,3 +145,17 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 FRONTEND_URL = os.environ.get('FRONTEND_URL')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+
+
+# --- NEW: Add this CHANNEL_LAYERS setting for Redis ---
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
+    },
+}
+# ---------------------------------------------------------

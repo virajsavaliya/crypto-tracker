@@ -51,15 +51,20 @@ const exchanges = [
   { id: 'trading_view', name: 'Trading View', logo: '/treding_logo/tv.png', baseUrl: 'https://www.tradingview.com/chart/?symbol=' },
 ];
 
-const renderChange = (value: number) => {
+const renderChange = (value: number | string) => {
     if (value === null || value === undefined) return <span className="text-gray-500">N/A</span>;
-    const isPositive = value > 0;
+    const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+
+    if (isNaN(numericValue)) {
+        return <span className="text-gray-500">N/A</span>;
+    }
+    const isPositive = numericValue > 0;
     const color = isPositive ? 'text-green-600' : 'text-red-600';
     const icon = isPositive ? <ChevronUp className="h-4 w-4 inline-block align-text-bottom mr-1" /> : <ChevronDown className="h-4 w-4 inline-block align-text-bottom mr-1" />;
     return (
         <span className={`flex items-center justify-start font-medium ${color}`}>
             {icon}
-            {value.toFixed(2)}%
+            {numericValue.toFixed(2)}%
         </span>
     );
 };
@@ -69,7 +74,9 @@ let isRefreshing = false;
 export default function DashboardPage() {
     const allColumns = useMemo(() => [
         { key: 'symbol', title: 'Symbol' },
-        { key: 'last_price', title: 'Last Price'},
+        { key: 'last_price', title: 'Last' },
+        { key: 'bid_price', title: 'Bid' },
+        { key: 'ask_price', title: 'Ask' },
         { key: 'spread', title: 'Spread' },
         { key: 'high_price_24h', title: '24h High' },
         { key: 'low_price_24h', title: '24h Low' },
@@ -87,27 +94,38 @@ export default function DashboardPage() {
         { key: 'm1_nv', title: '1mNV' }, { key: 'm2_nv', title: '2mNV' }, { key: 'm3_nv', title: '3mNV' }, { key: 'm5_nv', title: '5mNV' }, { key: 'm10_nv', title: '10mNV' }, { key: 'm15_nv', title: '15mNV' }, { key: 'm60_nv', title: '60mNV' },
         { key: 'm1_vol', title: '1m Vol' }, { key: 'm5_vol', title: '5m Vol' }, { key: 'm10_vol', title: '10m Vol' }, { key: 'm15_vol', title: '15m Vol' }, { key: 'm60_vol', title: '60m Vol' },
         { key: 'rsi_1m', title: 'RSI 1m' }, { key: 'rsi_3m', title: 'RSI 3m' }, { key: 'rsi_5m', title: 'RSI 5m' }, { key: 'rsi_15m', title: 'RSI 15m' },
-        { key: 'm1_bv', title: '1mBV' }, { key: 'm2_bv', title: '2mBV' }, { key: 'm3_bv', title: '3mBV' }, { key: 'm5_bv', title: '5mBV' }, { key: 'm10_bv', title: '10mBV' }, { key: 'm15_bv', title: '15mBV' }, { key: 'm60_bv', title: '60mBV' },
-        { key: 'm1_sv', title: '1mSV' }, { key: 'm2_sv', title: '2mSV' }, { key: 'm3_sv', title: '3mSV' }, { key: 'm5_sv', title: '5mSV' }, { key: 'm10_sv', title: '10mSV' }, { key: 'm15_sv', title: '15mSV' }, { key: 'm60_sv', title: '60mSV' },
+        { key: 'm1_bv', title: '1mBV' }, { key: 'm2_bv', title: '2mBV' }, { key: 'm3_bv', title: '3mBV' }, { key: 'm5_bv', title: '5mBV' }, { key: 'm15_bv', title: '15mBV' }, { key: 'm60_bv', title: '60mBV' },
+        { key: 'm1_sv', title: '1mSV' }, { key: 'm2_sv', title: '2mSV' }, { key: 'm3_sv', title: '3mSV' }, { key: 'm5_sv', title: '5mSV' }, { key: 'm15_sv', title: '15mSV' }, { key: 'm60_sv', title: '60mSV' },
     ], []);
 
-  const freeColumns = useMemo(() => ['symbol', 'last_price', 'high_price_24h', 'low_price_24h', 'price_change_percent_24h', 'quote_volume_24h'], []);
-  const [isPremium, setIsPremium] = useState(false);
-  const [plan, setPlan] = useState<string>('free');
-  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(allColumns.map(col => col.key)));
-  const [userName, setUserName] = useState<string | null>('');
-  const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedExchange, setSelectedExchange] = useState('binance');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof CryptoData; direction: 'ascending' | 'descending' } | null>({ key: 'quote_volume_24h', direction: 'descending' });
-  const [baseCurrency, setBaseCurrency] = useState<string>('USDT');
-  const [itemCount, setItemCount] = useState<string>('25');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [symbolFilter, setSymbolFilter] = useState<string[]>([]);
-  const [symbolSearch, setSymbolSearch] = useState('');
-  const [priceChanges, setPriceChanges] = useState<{[key: string]: 'up' | 'down' | 'neutral'}>({});
-  const [countdown, setCountdown] = useState(10);
+    const defaultColumns = useMemo(() => [
+        'symbol', 'last_price', 'price_change_percent_24h', 'quote_volume_24h', 'm1', 'm5', 'm10', 'm15', 'm60',
+        'm1_vol_pct', 'm2_vol_pct', 'm3_vol_pct', 'm5_vol_pct', 'm10_vol_pct', 'm15_vol_pct', 'm60_vol_pct',
+        'm1_range_pct', 'm2_range_pct', 'm3_range_pct', 'm5_range_pct', 'm10_range_pct', 'm15_range_pct', 'm60_range_pct',
+        'm1_nv', 'm2_nv', 'm3_nv', 'm5_nv', 'm10_nv', 'm15_nv', 'm60_nv',
+        'm1_vol', 'm5_vol', 'm10_vol', 'm15_vol', 'm60_vol',
+        'rsi_1m', 'rsi_3m', 'rsi_5m', 'rsi_15m',
+        'm1_bv', 'm2_bv', 'm3_bv', 'm5_bv', 'm15_bv', 'm60_bv',
+        'm1_sv', 'm2_sv', 'm3_sv', 'm5_sv', 'm15_sv', 'm60_sv'
+    ], []);
+
+    const freeColumns = useMemo(() => ['symbol', 'last_price', 'high_price_24h', 'low_price_24h', 'price_change_percent_24h', 'quote_volume_24h'], []);
+    const [isPremium, setIsPremium] = useState(false);
+    const [plan, setPlan] = useState<string>('free');
+    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(defaultColumns));
+    const [userName, setUserName] = useState<string | null>('');
+    const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedExchange, setSelectedExchange] = useState('binance');
+    const [sortConfig, setSortConfig] = useState<{ key: keyof CryptoData; direction: 'ascending' | 'descending' } | null>({ key: 'quote_volume_24h', direction: 'descending' });
+    const [baseCurrency, setBaseCurrency] = useState<string>('USDT');
+    const [itemCount, setItemCount] = useState<string>('25');
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [symbolFilter, setSymbolFilter] = useState<string[]>([]);
+    const [symbolSearch, setSymbolSearch] = useState('');
+    const [priceChanges, setPriceChanges] = useState<{[key: string]: 'up' | 'down' | 'neutral'}>({});
+    const [countdown, setCountdown] = useState(10);
 
   const changeColumns = [
     'price_change_percent_24h', 'm1', 'm2', 'm3', 'm5', 'm10', 'm15', 'm60',
@@ -201,16 +219,19 @@ export default function DashboardPage() {
           const oldItem = prevData.find(item => item.symbol === newItem.symbol);
           if (oldItem) {
             Object.keys(newItem).forEach(key => {
-              if (newItem[key] !== oldItem[key]) {
-                const oldValue = oldItem[key] as number;
-                const newValue = newItem[key] as number;
-                if (typeof newValue === 'number' && typeof oldValue === 'number') {
-                  if (newValue > oldValue) {
-                    changes[`${newItem.symbol}-${key}`] = 'up';
-                  } else if (newValue < oldValue) {
-                    changes[`${newItem.symbol}-${key}`] = 'down';
+              const oldValue = oldItem[key];
+              const newValue = newItem[key];
+              if (newValue !== oldValue) {
+                  const numericOldValue = typeof oldValue === 'string' ? parseFloat(oldValue) : oldValue as number;
+                  const numericNewValue = typeof newValue === 'string' ? parseFloat(newValue) : newValue as number;
+
+                  if (!isNaN(numericOldValue) && !isNaN(numericNewValue)) {
+                      if (numericNewValue > numericOldValue) {
+                          changes[`${newItem.symbol}-${key}`] = 'up';
+                      } else if (numericNewValue < numericOldValue) {
+                          changes[`${newItem.symbol}-${key}`] = 'down';
+                      }
                   }
-                }
               }
             });
           }
@@ -361,12 +382,19 @@ export default function DashboardPage() {
     );
   }
   
-  const formatNumber = (value: number | null | undefined) => {
-      if (value === null || value === undefined) return 'N/A';
-      if (value > 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-      if (value > 1_000) return `${(value / 1_000).toFixed(2)}K`;
-      if (Math.abs(value) < 1 && value !== 0) return value.toFixed(6);
-      return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatNumber = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined) return 'N/A';
+    
+    const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+
+    if (isNaN(numericValue)) {
+      return 'N/A';
+    }
+
+    if (numericValue > 1_000_000) return `${(numericValue / 1_000_000).toFixed(2)}M`;
+    if (numericValue > 1_000) return `${(numericValue / 1_000).toFixed(2)}K`;
+    if (Math.abs(numericValue) < 1 && numericValue !== 0) return numericValue.toFixed(6);
+    return numericValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   const renderCellContent = (key: string, crypto: CryptoData, isPremiumUser: boolean) => {
@@ -406,7 +434,7 @@ export default function DashboardPage() {
     let formattedValue: React.ReactNode;
     if (changeColumns.includes(key)) {
         formattedValue = renderChange(value as number);
-    } else if (typeof value === 'number') {
+    } else if (typeof value === 'number' || typeof value === 'string') {
         formattedValue = formatNumber(value);
     } else {
         formattedValue = value;
@@ -532,7 +560,13 @@ export default function DashboardPage() {
                   <TableHeader className="bg-gray-100 sticky top-0 z-10">
                     <TableRow className="border-b-0">
                       {allColumns.filter(col => visibleColumns.has(col.key)).map((col) => (
-                        <TableHead key={col.key} className="px-2 py-2 text-left" >
+                        <TableHead
+                            key={col.key}
+                            className={cn(
+                                "px-2 py-2 text-left",
+                                col.key === 'symbol' && "sticky left-0 bg-gray-100"
+                            )}
+                        >
                           <div className="flex items-center whitespace-nowrap">
                             <span className="cursor-pointer" onClick={() => col.key !== 'symbol' && requestSort(col.key as keyof CryptoData)}>
                                 {col.title}
@@ -598,7 +632,7 @@ export default function DashboardPage() {
                               key={col.key}
                               className={cn(
                                 "px-2 py-2 text-left",
-                                col.key === 'symbol' && "min-w-[150px]",
+                                col.key === 'symbol' && "sticky left-0 bg-white",
                                 priceChanges[`${crypto.symbol}-${col.key}`] === 'up' && 'bg-green-100 animate-pulse-green',
                                 priceChanges[`${crypto.symbol}-${col.key}`] === 'down' && 'bg-red-100 animate-pulse-red'
                               )}
