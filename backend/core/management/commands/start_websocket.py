@@ -167,9 +167,10 @@ class Command(BaseCommand):
 
     @database_sync_to_async
     def bulk_update_database(self, data_batch):
-        """Performs a highly efficient bulk update/create operation."""
-        symbols = data_batch.keys()
-        
+        """Performs a highly efficient bulk update/create operation in smaller batches."""
+        symbols = list(data_batch.keys())
+        batch_size = 500  # Process 500 records at a time
+
         # Fetch existing records in one query
         existing_records = {obj.symbol: obj for obj in CryptoData.objects.filter(symbol__in=symbols)}
         
@@ -193,17 +194,26 @@ class Command(BaseCommand):
             if symbol in existing_records:
                 record = existing_records[symbol]
                 for key, value in full_payload.items():
+                    # Check for NaN or infinity before setting attribute
+                    if isinstance(value, float) and (value != value or value == float('inf') or value == float('-inf')):
+                        value = None  # or 0, depending on how you want to handle it
                     setattr(record, key, value)
                 to_update.append(record)
             else:
                 new_record = CryptoData(symbol=symbol, **full_payload)
                 to_create.append(new_record)
 
+        # Process creations in batches
         if to_create:
-            CryptoData.objects.bulk_create(to_create)
+            for i in range(0, len(to_create), batch_size):
+                batch = to_create[i:i + batch_size]
+                CryptoData.objects.bulk_create(batch)
         
+        # Process updates in batches
         if to_update:
-            CryptoData.objects.bulk_update(to_update, all_fields)
+            for i in range(0, len(to_update), batch_size):
+                batch = to_update[i:i + batch_size]
+                CryptoData.objects.bulk_update(batch, all_fields)
 
     def cleanup_old_klines(self):
         cutoff_ms = (time.time() - (250 * 60)) * 1000
