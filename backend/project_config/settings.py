@@ -55,6 +55,10 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOWED_ORIGINS = [
+    "crypto-tracker-web-production.up.railway.app",
+    "http://localhost:3000",
+]
 
 # --- URLS, TEMPLATES, and APPLICATIONS ---
 ROOT_URLCONF = 'project_config.urls'
