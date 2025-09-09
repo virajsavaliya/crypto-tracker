@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from django.core.management.base import BaseCommand
 import websockets
 from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 from core.models import CryptoData
 from channels.db import database_sync_to_async
 from core.serializers import CryptoDataSerializer, CryptoDataFreeSerializer
@@ -158,18 +157,20 @@ class Command(BaseCommand):
 
     async def save_and_broadcast_data(self):
         while True:
-            await asyncio.sleep(2) # Faster interval for updates
+            # Increased interval to reduce database load
+            await asyncio.sleep(10)
+            
             async with self.data_lock:
                 ticker_batch = self.latest_ticker_data.copy()
             if not ticker_batch: continue
             
             self.stdout.write(f"\nProcessing batch of {len(ticker_batch)} symbols at {time.strftime('%H:%M:%S')}...")
             
-            updated_instances = await self.bulk_update_database(ticker_batch)
+            updated_instances_data = await self.bulk_upsert_database(ticker_batch)
             
-            if updated_instances:
-                premium_data = CryptoDataSerializer(updated_instances, many=True).data
-                free_data = CryptoDataFreeSerializer(updated_instances, many=True).data
+            if updated_instances_data:
+                premium_data = CryptoDataSerializer(updated_instances_data, many=True).data
+                free_data = CryptoDataFreeSerializer(updated_instances_data, many=True).data
                 
                 await self.channel_layer.group_send(
                     "crypto_premium", {"type": "crypto.update", "data": premium_data}
@@ -180,11 +181,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("Batch processed and broadcasted."))
 
     @database_sync_to_async
-    def bulk_update_database(self, ticker_batch):
-        symbols = list(ticker_batch.keys())
-        existing_records = {obj.symbol: obj for obj in CryptoData.objects.filter(symbol__in=symbols)}
-        to_create, to_update = [], []
-        all_fields = [f.name for f in CryptoData._meta.get_fields() if f.name != 'id']
+    def bulk_upsert_database(self, ticker_batch):
+        """
+        Performs a highly efficient bulk "upsert" (update or insert).
+        This is much faster than fetching and then updating.
+        """
+        all_fields = [f.name for f in CryptoData._meta.get_fields() if f.name not in ['id', 'symbol']]
+        instances_to_upsert = []
 
         for symbol, data in ticker_batch.items():
             live_data = {
@@ -196,20 +199,22 @@ class Command(BaseCommand):
             live_data['spread'] = live_data.get('ask_price', 0) - live_data.get('bid_price', 0)
             calculated_metrics = self.calculated_metrics.get(symbol, {})
             full_payload = {**live_data, **calculated_metrics}
+            
+            # Set default values for all fields to avoid IntegrityError on insert
+            for field in all_fields:
+                if field not in full_payload:
+                    full_payload[field] = None
+            
+            instances_to_upsert.append(CryptoData(symbol=symbol, **full_payload))
 
-            instance = existing_records.get(symbol)
-            if instance:
-                for key, value in full_payload.items():
-                    if hasattr(instance, key):
-                        setattr(instance, key, value)
-                to_update.append(instance)
-            else:
-                to_create.append(CryptoData(symbol=symbol, **full_payload))
+        if instances_to_upsert:
+            CryptoData.objects.bulk_create(
+                instances_to_upsert,
+                batch_size=500,
+                update_conflicts=True,
+                unique_fields=['symbol'],
+                update_fields=all_fields
+            )
         
-        if to_create:
-            CryptoData.objects.bulk_create(to_create, ignore_conflicts=True)
-        if to_update:
-            CryptoData.objects.bulk_update(to_update, all_fields)
-        
-        # Return updated instances for broadcasting
-        return to_update + to_create
+        # Return the data for broadcasting
+        return instances_to_upsert
