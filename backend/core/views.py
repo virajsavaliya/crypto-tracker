@@ -21,6 +21,7 @@ from .serializers import (
     UserSerializer, AlertSerializer, PaymentSerializer,
     CryptoDataSerializer, CryptoDataFreeSerializer, FavoriteCryptoSerializer
 )
+from django.core.cache import cache
 
 # --- Import the tasks ---
 from .tasks import send_activation_email_task, send_login_token_email_task
@@ -287,12 +288,28 @@ class BinanceDataView(APIView):
     def get(self, request):
         try:
             user = request.user
-            crypto_data = CryptoData.objects.all().order_by('-quote_volume_24h')
-
+            
+            # --- UPDATED LOGIC: READ FROM CACHE FIRST ---
             if user.is_premium_user:
+                cache_key = 'crypto_data_premium'
+                cached_data = cache.get(cache_key)
+                if cached_data:
+                    return Response(cached_data, status=status.HTTP_200_OK)
+                
+                # Fallback to DB if cache is empty
+                crypto_data = CryptoData.objects.all().order_by('-quote_volume_24h')
                 serializer = CryptoDataSerializer(crypto_data, many=True)
+                cache.set(cache_key, serializer.data, timeout=60) # Set cache on fallback
             else:
+                cache_key = 'crypto_data_free'
+                cached_data = cache.get(cache_key)
+                if cached_data:
+                    return Response(cached_data, status=status.HTTP_200_OK)
+
+                # Fallback to DB if cache is empty
+                crypto_data = CryptoData.objects.all().order_by('-quote_volume_24h')
                 serializer = CryptoDataFreeSerializer(crypto_data, many=True)
+                cache.set(cache_key, serializer.data, timeout=60) # Set cache on fallback
 
             return Response(serializer.data, status=status.HTTP_200_OK)
 

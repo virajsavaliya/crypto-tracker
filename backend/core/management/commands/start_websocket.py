@@ -10,6 +10,8 @@ from django.core.management.base import BaseCommand
 import websockets
 from core.models import CryptoData
 from channels.db import database_sync_to_async
+from django.core.cache import cache # <--- Add this import
+from core.serializers import CryptoDataSerializer, CryptoDataFreeSerializer # <--- Add this import
 
 class Command(BaseCommand):
     help = 'Starts a high-performance process to fetch, pre-load, calculate, and save all crypto data.'
@@ -189,19 +191,43 @@ class Command(BaseCommand):
 
 
     async def save_data_periodically(self):
-        """Periodically saves the latest combined ticker and metric data to the database."""
+        """Periodically saves the latest combined ticker and metric data to the database and cache."""
         while True:
             await asyncio.sleep(3) # Save interval
             
             async with self.data_lock:
-                # Create a copy to work with, releasing the lock quickly
                 ticker_batch = self.latest_ticker_data.copy()
             
             if not ticker_batch: continue
 
             self.stdout.write(f"\nSaving batch of {len(ticker_batch)} symbols at {time.strftime('%H:%M:%S')}...")
+            
+            # This database update can still happen in the background
             await self.bulk_update_database(ticker_batch)
-            self.stdout.write(self.style.SUCCESS("Batch database save complete."))
+
+            # --- NEW CACHING LOGIC ---
+            # Now, let's update the cache with the latest full dataset
+            await self.update_cache()
+            
+            self.stdout.write(self.style.SUCCESS("Batch database and cache save complete."))
+
+    @database_sync_to_async
+    def update_cache(self):
+            """
+            Fetches all data from the database and caches the serialized
+            results for both free and premium users.
+            """
+            all_data = CryptoData.objects.all().order_by('-quote_volume_24h')
+            
+            # Create and cache the free user data
+            free_serializer = CryptoDataFreeSerializer(all_data, many=True)
+            cache.set('crypto_data_free', free_serializer.data, timeout=60) # Cache for 60 seconds
+
+            # Create and cache the premium user data
+            premium_serializer = CryptoDataSerializer(all_data, many=True)
+            cache.set('crypto_data_premium', premium_serializer.data, timeout=60) # Cache for 60 seconds
+
+
 
     @database_sync_to_async
     def bulk_update_database(self, ticker_batch):

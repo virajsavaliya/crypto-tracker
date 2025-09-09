@@ -111,7 +111,15 @@ else:
     # }
 
 
-
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get('REDIS_URL', 'redis://default:ODvxpXIRSwZUGBbHZUDqEcHbOpEvnNbk@yamanote.proxy.rlwy.net:51107'), # Use database 1 for caching
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
 
 # --- REST FRAMEWORK and AUTHENTICATION ---
 REST_FRAMEWORK = {
