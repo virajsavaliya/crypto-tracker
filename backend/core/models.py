@@ -13,7 +13,7 @@ class User(AbstractUser):
     is_active = models.BooleanField(default=False)
     activation_token = models.CharField(max_length=100, blank=True, null=True, unique=True)
     login_token = models.CharField(max_length=100, blank=True, null=True, unique=True)
-    mobile_number = models.CharField(max_length=15, blank=True, null=True)
+    mobile_number = models.CharField(max_length=15, blank=True, null=True, unique=True) # Add unique=True
     SUBSCRIPTION_PLANS = (('free', 'Free'), ('basic', 'Basic'), ('enterprise', 'Enterprise'),)
     subscription_plan = models.CharField(max_length=20, choices=SUBSCRIPTION_PLANS, default='free')
     stripe_customer_id = models.CharField(max_length=50, blank=True, null=True)

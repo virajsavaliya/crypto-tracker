@@ -112,14 +112,6 @@ else:
 
 
 
-CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_ALWAYS_EAGER = DEBUG # Set to False in production
 
 # --- REST FRAMEWORK and AUTHENTICATION ---
 REST_FRAMEWORK = {
@@ -158,15 +150,3 @@ STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 
 
-# --- NEW: Add this CHANNEL_LAYERS setting for Redis ---
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [REDIS_URL],
-        },
-    },
-}
-# ---------------------------------------------------------

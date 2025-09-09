@@ -2,7 +2,6 @@
 import os
 import json
 from django.conf import settings
-from django.core.mail import send_mail
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,7 +22,7 @@ from .serializers import (
     CryptoDataSerializer, CryptoDataFreeSerializer, FavoriteCryptoSerializer
 )
 
-# --- NEW: Import the tasks ---
+# --- Import the tasks ---
 from .tasks import send_activation_email_task, send_login_token_email_task
 
 # --- Firebase Admin SDK Initialization ---
@@ -54,31 +53,29 @@ stripe_price_ids = {
     'enterprise': os.environ.get('STRIPE_PRICE_ID_ENTERPRISE'),
 }
 
+# File: core/views.py
+
 class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
-            if User.objects.filter(email=email).exists():
-                return Response({'message': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            first_name = serializer.validated_data.get('first_name')
-            last_name = serializer.validated_data.get('last_name')
-            mobile_number = serializer.validated_data.get('mobile_number')
+            # Let the serializer create the user
+            user = serializer.save() 
+            
+            # Generate the activation token
             token = str(uuid.uuid4())
-            user = User.objects.create_user(
-                username=email, email=email, password=str(uuid.uuid4()),
-                is_active=False, first_name=first_name, last_name=last_name,
-                mobile_number=mobile_number, activation_token=token,
-                subscription_plan='free', is_premium_user=False
-            )
+            user.activation_token = token
+            user.save()
 
-            # --- CHANGE: Call the async task instead of blocking send_mail ---
-            send_activation_email_task.delay(email, first_name, token)
+            # Send the activation email
+            send_activation_email_task(user.email, user.first_name, token)
 
             return Response({'message': 'User registered successfully. An activation email has been sent.'}, status=status.HTTP_201_CREATED)
+        
+        # If the serializer is not valid, it will return the errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    
 class RequestLoginTokenView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -92,8 +89,9 @@ class RequestLoginTokenView(APIView):
                 user.login_token = login_token
                 user.save()
 
-                # --- CHANGE: Call the async task instead of blocking send_mail ---
-                send_login_token_email_task.delay(email, user.first_name, login_token)
+                # *** CHANGE THIS LINE ***
+                # Call the function directly instead of using .delay()
+                send_login_token_email_task(email, user.first_name, login_token)
 
                 return Response({'message': 'A login link has been sent to your email.'}, status=status.HTTP_200_OK)
             except User.DoesNotExist:

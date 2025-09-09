@@ -1,19 +1,33 @@
 # File: core/serializers.py
 
 from rest_framework import serializers
-from .models import User, Alert, Payment, CryptoData, FavoriteCrypto # Add FavoriteCrypto
-
-# --- Other serializers (Register, Login, User, Alert, Payment) remain the same ---
+from .models import User, Alert, Payment, CryptoData, FavoriteCrypto
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'email', 'mobile_number')
+        # Only include the fields the user needs to provide
+        fields = ['email', 'first_name', 'last_name', 'mobile_number']
         extra_kwargs = {
             'first_name': {'required': True},
             'last_name': {'required': True},
             'mobile_number': {'required': True},
         }
+
+    def create(self, validated_data):
+        # Set the username to be the email, as intended
+        user = User.objects.create_user(
+            username=validated_data['email'],
+            email=validated_data['email'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            mobile_number=validated_data.get('mobile_number', ''),
+            is_active=False, # Start with an inactive account until activation
+            subscription_plan='free',
+            is_premium_user=False
+        )
+        return user
+
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
