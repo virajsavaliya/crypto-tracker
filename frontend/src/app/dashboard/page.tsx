@@ -12,7 +12,6 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 
-// Interfaces remain the same
 interface CryptoData {
   symbol: string;
   last_price: number;
@@ -124,6 +123,7 @@ export default function DashboardPage() {
       const [priceChanges, setPriceChanges] = useState<{ [key: string]: 'up' | 'down' | 'neutral' }>({});
       const [countdown, setCountdown] = useState(10);
       const socketRef = useRef<WebSocket | null>(null);
+      const dataBatchRef = useRef<Map<string, CryptoData>>(new Map());
     
       const changeColumns = [
         'price_change_percent_24h', 'm1', 'm2', 'm3', 'm5', 'm10', 'm15', 'm60',
@@ -162,8 +162,28 @@ export default function DashboardPage() {
             headers: { 'Authorization': `Bearer ${user.access_token}` },
           });
           if (!response.ok) throw new Error('Failed to fetch data');
-          const data = await response.json();
-          setCryptoData(data);
+          const data: CryptoData[] = await response.json();
+          
+          setCryptoData(prevData => {
+            const changes: { [key: string]: 'up' | 'down' } = {};
+            data.forEach(newItem => {
+                const oldItem = prevData.find(item => item.symbol === newItem.symbol);
+                if (oldItem) {
+                    Object.keys(newItem).forEach(keyStr => {
+                        const key = keyStr as keyof CryptoData;
+                        const oldValue = oldItem[key];
+                        const newValue = newItem[key];
+                        if (typeof oldValue === 'number' && typeof newValue === 'number' && oldValue !== newValue) {
+                            changes[`${newItem.symbol}-${key}`] = newValue > oldValue ? 'up' : 'down';
+                        }
+                    });
+                }
+            });
+            setPriceChanges(changes);
+            setTimeout(() => setPriceChanges({}), 1000); // Animation duration
+            return data;
+        });
+
           setError(null);
         } catch (err) {
             console.error(err)
@@ -204,7 +224,9 @@ export default function DashboardPage() {
                     setCryptoData(data);
                 }
 
-                connectWebSocket(user.access_token);
+                if (userDetails.is_premium_user) {
+                    connectWebSocket(user.access_token);
+                }
 
             } catch (e) {
                 console.error(e);
@@ -215,28 +237,17 @@ export default function DashboardPage() {
         };
 
         const connectWebSocket = (token: string) => {
-            const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `wss://${window.location.host}`;
+            const isLocal = window.location.hostname === 'localhost';
+            const localWsUrl = 'ws://localhost:8000';
+            const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL || `wss://${window.location.host}`;
+            const wsUrl = isLocal ? localWsUrl : productionWsUrl;
+
             socketRef.current = new WebSocket(`${wsUrl}/ws/crypto/?token=${token}`);
     
             socketRef.current.onmessage = (event) => {
                 const updatedBatch: CryptoData[] = JSON.parse(event.data);
-    
-                setCryptoData(prevData => {
-                    const changes: { [key: string]: 'up' | 'down' } = {};
-                    const dataMap = new Map(prevData.map(item => [item.symbol, item]));
-    
-                    updatedBatch.forEach(newItem => {
-                        const oldItem = dataMap.get(newItem.symbol);
-                        if (oldItem && newItem.last_price !== oldItem.last_price) {
-                            changes[`${newItem.symbol}-last_price`] = newItem.last_price > oldItem.last_price ? 'up' : 'down';
-                        }
-                        dataMap.set(newItem.symbol, { ...oldItem, ...newItem });
-                    });
-                    
-                    setPriceChanges(changes);
-                    setTimeout(() => setPriceChanges({}), 500);
-    
-                    return Array.from(dataMap.values());
+                updatedBatch.forEach(item => {
+                    dataBatchRef.current.set(item.symbol, item);
                 });
             };
     
@@ -259,15 +270,48 @@ export default function DashboardPage() {
             isMounted = false;
             socketRef.current?.close();
         };
-    }, [handleLogout]);
+      }, [handleLogout]);
     
       useEffect(() => {
-        if (isPremium) {
-            const countdownId = setInterval(() => {
-              setCountdown(prev => (prev > 0 ? prev - 1 : 0));
-            }, 1000);
-            return () => clearInterval(countdownId);
-          }
+        if (!isPremium) return;
+
+        const interval = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    if (dataBatchRef.current.size > 0) {
+                        setCryptoData(prevData => {
+                            const changes: { [key: string]: 'up' | 'down' } = {};
+                            const dataMap = new Map(prevData.map(item => [item.symbol, item]));
+                            
+                            dataBatchRef.current.forEach(newItem => {
+                                const oldItem = dataMap.get(newItem.symbol);
+                                if (oldItem) {
+                                    Object.keys(newItem).forEach(keyStr => {
+                                        const key = keyStr as keyof CryptoData;
+                                        const oldValue = oldItem[key];
+                                        const newValue = newItem[key];
+                                        if (typeof oldValue === 'number' && typeof newValue === 'number' && oldValue !== newValue) {
+                                            changes[`${newItem.symbol}-${key}`] = newValue > oldValue ? 'up' : 'down';
+                                        }
+                                    });
+                                }
+                                dataMap.set(newItem.symbol, { ...oldItem, ...newItem });
+                            });
+
+                            setPriceChanges(changes);
+                            setTimeout(() => setPriceChanges({}), 1000);
+                            
+                            dataBatchRef.current.clear();
+                            return Array.from(dataMap.values());
+                        });
+                    }
+                    return 10;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
       }, [isPremium]);
     
       const sortedAndFilteredData = useMemo(() => {
@@ -455,7 +499,7 @@ export default function DashboardPage() {
                   {isPremium && (
                     <div className="flex items-center space-x-2 text-sm text-gray-500">
                       <RefreshCw className="h-4 w-4" />
-                      <span>Live Updates Active</span>
+                      <span>Next update in {countdown}s</span>
                     </div>
                   )}
                 </div>
@@ -494,7 +538,7 @@ export default function DashboardPage() {
                       className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl flex items-center justify-center min-w-[120px]"
                     >
                       <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} /> 
-                      {isRefreshing ? 'Refreshing...' : `Refresh (${countdown}s)`} 
+                      {isRefreshing ? 'Refreshing...' : 'Refresh'} 
                     </Button>
                   )}
                 </div>
