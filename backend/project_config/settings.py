@@ -56,8 +56,17 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# This allows your frontend to make requests to your backend
 CORS_ALLOWED_ORIGINS = [
     "https://crypto-tracker-web-production.up.railway.app",
+    "http://localhost:3000",
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# Also add your frontend to the trusted origins for CSRF
+CSRF_TRUSTED_ORIGINS = [
+    "https://crypto-tracker-web-production.up.railway.app",
+    "http://localhost:3000",
 ]
 
 # --- URLS, TEMPLATES, and APPLICATIONS ---
