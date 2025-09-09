@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 
+// Interfaces remain the same
 interface CryptoData {
   symbol: string;
   last_price: number;
@@ -54,616 +55,567 @@ const exchanges = [
 const renderChange = (value: number | string) => {
   if (value === null || value === undefined) return <span className="text-gray-500">N/A</span>;
   const numericValue = typeof value === 'string' ? parseFloat(value) : value;
-
-  if (isNaN(numericValue)) {
-    return <span className="text-gray-500">N/A</span>;
-  }
+  if (isNaN(numericValue)) return <span className="text-gray-500">N/A</span>;
   const isPositive = numericValue > 0;
   const color = isPositive ? 'text-green-600' : 'text-red-600';
-  const icon = isPositive ? <ChevronUp className="h-4 w-4 inline-block align-text-bottom mr-1" /> : <ChevronDown className="h-4 w-4 inline-block align-text-bottom mr-1" />;
+  const icon = isPositive ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />;
   return (
-    <span className={`flex items-center justify-start font-medium ${color}`}>
+    <span className={`flex items-center font-medium ${color}`}>
       {icon}
       {numericValue.toFixed(2)}%
     </span>
   );
 };
 
-let isTokenRefreshing = false; // Renamed to be more specific
-
 export default function DashboardPage() {
-  const allColumns = useMemo(() => [
-    { key: 'symbol', title: 'Symbol' },
-    { key: 'last_price', title: 'Last' },
-    { key: 'bid_price', title: 'Bid' },
-    { key: 'ask_price', title: 'Ask' },
-    { key: 'spread', title: 'Spread' },
-    { key: 'high_price_24h', title: '24h High' },
-    { key: 'low_price_24h', title: '24h Low' },
-    { key: 'price_change_percent_24h', title: '24h %' },
-    { key: 'quote_volume_24h', title: '24h Vol' },
-    { key: 'm1', title: '1m %' }, { key: 'm5', title: '5m %' }, { key: 'm10', title: '10m %' }, { key: 'm15', title: '15m %' }, { key: 'm60', title: '60m %' },
-    { key: 'm1_vol_pct', title: '1m Vol %' }, { key: 'm2_vol_pct', title: '2m Vol %' }, { key: 'm3_vol_pct', title: '3m Vol %' }, { key: 'm5_vol_pct', title: '5m Vol %' }, { key: 'm10_vol_pct', title: '10m Vol %' }, { key: 'm15_vol_pct', title: '15m Vol %' }, { key: 'm60_vol_pct', title: '60m Vol %' },
-    { key: 'm1_low', title: '1mL' }, { key: 'm1_high', title: '1mH' }, { key: 'm1_range_pct', title: '1mR%' },
-    { key: 'm2_low', title: '2mL' }, { key: 'm2_high', title: '2mH' }, { key: 'm2_range_pct', title: '2mR%' },
-    { key: 'm3_low', title: '3mL' }, { key: 'm3_high', title: '3mH' }, { key: 'm3_range_pct', title: '3mR%' },
-    { key: 'm5_low', title: '5mL' }, { key: 'm5_high', title: '5mH' }, { key: 'm5_range_pct', title: '5mR%' },
-    { key: 'm10_low', title: '10mL' }, { key: 'm10_high', title: '10mH' }, { key: 'm10_range_pct', title: '10mR%' },
-    { key: 'm15_low', title: '15mL' }, { key: 'm15_high', title: '15mH' }, { key: 'm15_range_pct', title: '15mR%' },
-    { key: 'm60_low', title: '60mL' }, { key: 'm60_high', title: '60mH' }, { key: 'm60_range_pct', title: '60mR%' },
-    { key: 'm1_nv', title: '1mNV' }, { key: 'm2_nv', title: '2mNV' }, { key: 'm3_nv', title: '3mNV' }, { key: 'm5_nv', title: '5mNV' }, { key: 'm10_nv', title: '10mNV' }, { key: 'm15_nv', title: '15mNV' }, { key: 'm60_nv', title: '60mNV' },
-    { key: 'm1_vol', title: '1m Vol' }, { key: 'm5_vol', title: '5m Vol' }, { key: 'm10_vol', title: '10m Vol' }, { key: 'm15_vol', title: '15m Vol' }, { key: 'm60_vol', title: '60m Vol' },
-    { key: 'rsi_1m', title: 'RSI 1m' }, { key: 'rsi_3m', title: 'RSI 3m' }, { key: 'rsi_5m', title: 'RSI 5m' }, { key: 'rsi_15m', title: 'RSI 15m' },
-    { key: 'm1_bv', title: '1mBV' }, { key: 'm2_bv', title: '2mBV' }, { key: 'm3_bv', title: '3mBV' }, { key: 'm5_bv', title: '5mBV' }, { key: 'm15_bv', title: '15mBV' }, { key: 'm60_bv', title: '60mBV' },
-    { key: 'm1_sv', title: '1mSV' }, { key: 'm2_sv', title: '2mSV' }, { key: 'm3_sv', title: '3mSV' }, { key: 'm5_sv', title: '5mSV' }, { key: 'm15_sv', title: '15mSV' }, { key: 'm60_sv', title: '60mSV' },
-  ], []);
-
-  const defaultColumns = useMemo(() => [
-    'symbol', 'last_price', 'price_change_percent_24h', 'quote_volume_24h', 'm1', 'm5', 'm10', 'm15', 'm60',
-    'm1_vol_pct', 'm2_vol_pct', 'm3_vol_pct', 'm5_vol_pct', 'm10_vol_pct', 'm15_vol_pct', 'm60_vol_pct',
-    'm1_range_pct', 'm2_range_pct', 'm3_range_pct', 'm5_range_pct', 'm10_range_pct', 'm15_range_pct', 'm60_range_pct',
-    'm1_nv', 'm2_nv', 'm3_nv', 'm5_nv', 'm10_nv', 'm15_nv', 'm60_nv',
-    'm1_vol', 'm5_vol', 'm10_vol', 'm15_vol', 'm60_vol',
-    'rsi_1m', 'rsi_3m', 'rsi_5m', 'rsi_15m',
-    'm1_bv', 'm2_bv', 'm3_bv', 'm5_bv', 'm15_bv', 'm60_bv',
-    'm1_sv', 'm2_sv', 'm3_sv', 'm5_sv', 'm15_sv', 'm60_sv'
-  ], []);
-
-  const freeColumns = useMemo(() => ['symbol', 'last_price', 'high_price_24h', 'low_price_24h', 'price_change_percent_24h', 'quote_volume_24h'], []);
-  const [isPremium, setIsPremium] = useState(false);
-  const [plan, setPlan] = useState<string>('free');
-  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(defaultColumns));
-  const [userName, setUserName] = useState<string | null>('');
-  const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false); // <-- 1. ADD NEW STATE for the button
-  const [error, setError] = useState<string | null>(null);
-  const [selectedExchange, setSelectedExchange] = useState('binance');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof CryptoData; direction: 'ascending' | 'descending' } | null>({ key: 'quote_volume_24h', direction: 'descending' });
-  const [baseCurrency, setBaseCurrency] = useState<string>('USDT');
-  const [itemCount, setItemCount] = useState<string>('25');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [symbolFilter, setSymbolFilter] = useState<string[]>([]);
-  const [symbolSearch, setSymbolSearch] = useState('');
-  const [priceChanges, setPriceChanges] = useState<{ [key: string]: 'up' | 'down' | 'neutral' }>({});
-  const [countdown, setCountdown] = useState(10);
-
-  const changeColumns = [
-    'price_change_percent_24h', 'm1', 'm2', 'm3', 'm5', 'm10', 'm15', 'm60',
-    'm1_vol_pct', 'm2_vol_pct', 'm3_vol_pct', 'm5_vol_pct', 'm10_vol_pct', 'm15_vol_pct', 'm60_vol_pct',
-    'm1_range_pct', 'm2_range_pct', 'm3_range_pct', 'm5_range_pct', 'm10_range_pct', 'm15_range_pct', 'm60_range_pct'
-  ];
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('is_premium_user');
-    window.location.href = '/';
-  }, []);
-
-  const handleUpgradeClick = () => {
-    window.location.href = '/upgrade-plan';
-  };
-
-  const refreshAndRetry = useCallback(async (originalRequest: (token?: string, isRetry?: boolean) => void) => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (!user.refresh_token) {
-      console.error('No refresh token found. Redirecting to login.');
-      handleLogout();
-      return;
-    }
-    if (isRefreshing) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const updatedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      await originalRequest(updatedUser.access_token, true);
-      return;
-    }
-    isTokenRefreshing = true;
-    try {
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/token/refresh/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh: user.refresh_token }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const updatedUser = { ...user, access_token: data.access };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        await originalRequest(updatedUser.access_token, true);
-      } else {
-        console.error('Failed to refresh token. Redirecting to login.');
-        handleLogout();
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      handleLogout();
-    } finally {
-      isTokenRefreshing = false;
-    }
-  }, [handleLogout]);
-
-  const toggleColumn = (key: string) => {
-    setVisibleColumns(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) newSet.delete(key);
-      else newSet.add(key);
-      return newSet;
-    });
-  };
-
-  const fetchBackendData = useCallback(async (token?: string, isRetry = false) => {
-    if (isRefreshing) return;
-
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const authToken = token || user.access_token;
-    if (!authToken) {
-      handleLogout();
-      return;
-    }
-    try {
-      if (!cryptoData.length) {
-        setLoading(true);
-      }
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/binance-data/`, {
-        headers: { 'Authorization': `Bearer ${authToken}` },
-      });
-      if (!response.ok) {
-        if (response.status === 401 && !isRetry) {
-          await refreshAndRetry(fetchBackendData);
-        } else {
-          throw new Error('Failed to fetch data from backend');
+    const allColumns = useMemo(() => [
+        { key: 'symbol', title: 'Symbol' },
+        { key: 'last_price', title: 'Last' },
+        { key: 'bid_price', title: 'Bid' },
+        { key: 'ask_price', title: 'Ask' },
+        { key: 'spread', title: 'Spread' },
+        { key: 'high_price_24h', title: '24h High' },
+        { key: 'low_price_24h', title: '24h Low' },
+        { key: 'price_change_percent_24h', title: '24h %' },
+        { key: 'quote_volume_24h', title: '24h Vol' },
+        { key: 'm1', title: '1m %' }, { key: 'm5', title: '5m %' }, { key: 'm10', title: '10m %' }, { key: 'm15', title: '15m %' }, { key: 'm60', title: '60m %' },
+        { key: 'm1_vol_pct', title: '1m Vol %' }, { key: 'm2_vol_pct', title: '2m Vol %' }, { key: 'm3_vol_pct', title: '3m Vol %' }, { key: 'm5_vol_pct', title: '5m Vol %' }, { key: 'm10_vol_pct', title: '10m Vol %' }, { key: 'm15_vol_pct', title: '15m Vol %' }, { key: 'm60_vol_pct', title: '60m Vol %' },
+        { key: 'm1_low', title: '1mL' }, { key: 'm1_high', title: '1mH' }, { key: 'm1_range_pct', title: '1mR%' },
+        { key: 'm2_low', title: '2mL' }, { key: 'm2_high', title: '2mH' }, { key: 'm2_range_pct', title: '2mR%' },
+        { key: 'm3_low', title: '3mL' }, { key: 'm3_high', title: '3mH' }, { key: 'm3_range_pct', title: '3mR%' },
+        { key: 'm5_low', title: '5mL' }, { key: 'm5_high', title: '5mH' }, { key: 'm5_range_pct', title: '5mR%' },
+        { key: 'm10_low', title: '10mL' }, { key: 'm10_high', title: '10mH' }, { key: 'm10_range_pct', title: '10mR%' },
+        { key: 'm15_low', title: '15mL' }, { key: 'm15_high', title: '15mH' }, { key: 'm15_range_pct', title: '15mR%' },
+        { key: 'm60_low', title: '60mL' }, { key: 'm60_high', title: '60mH' }, { key: 'm60_range_pct', title: '60mR%' },
+        { key: 'm1_nv', title: '1mNV' }, { key: 'm2_nv', title: '2mNV' }, { key: 'm3_nv', title: '3mNV' }, { key: 'm5_nv', title: '5mNV' }, { key: 'm10_nv', title: '10mNV' }, { key: 'm15_nv', title: '15mNV' }, { key: 'm60_nv', title: '60mNV' },
+        { key: 'm1_vol', title: '1m Vol' }, { key: 'm5_vol', title: '5m Vol' }, { key: 'm10_vol', title: '10m Vol' }, { key: 'm15_vol', title: '15m Vol' }, { key: 'm60_vol', title: '60m Vol' },
+        { key: 'rsi_1m', title: 'RSI 1m' }, { key: 'rsi_3m', title: 'RSI 3m' }, { key: 'rsi_5m', title: 'RSI 5m' }, { key: 'rsi_15m', title: 'RSI 15m' },
+        { key: 'm1_bv', title: '1mBV' }, { key: 'm2_bv', title: '2mBV' }, { key: 'm3_bv', title: '3mBV' }, { key: 'm5_bv', title: '5mBV' }, { key: 'm15_bv', title: '15mBV' }, { key: 'm60_bv', title: '60mBV' },
+        { key: 'm1_sv', title: '1mSV' }, { key: 'm2_sv', title: '2mSV' }, { key: 'm3_sv', title: '3mSV' }, { key: 'm5_sv', title: '5mSV' }, { key: 'm15_sv', title: '15mSV' }, { key: 'm60_sv', title: '60mSV' },
+      ], []);
+    
+      const defaultColumns = useMemo(() => [
+        'symbol', 'last_price', 'price_change_percent_24h', 'quote_volume_24h', 'm1', 'm5', 'm10', 'm15', 'm60',
+        'm1_vol_pct', 'm2_vol_pct', 'm3_vol_pct', 'm5_vol_pct', 'm10_vol_pct', 'm15_vol_pct', 'm60_vol_pct',
+        'm1_range_pct', 'm2_range_pct', 'm3_range_pct', 'm5_range_pct', 'm10_range_pct', 'm15_range_pct', 'm60_range_pct',
+        'm1_nv', 'm2_nv', 'm3_nv', 'm5_nv', 'm10_nv', 'm15_nv', 'm60_nv',
+        'm1_vol', 'm5_vol', 'm10_vol', 'm15_vol', 'm60_vol',
+        'rsi_1m', 'rsi_3m', 'rsi_5m', 'rsi_15m',
+        'm1_bv', 'm2_bv', 'm3_bv', 'm5_bv', 'm15_bv', 'm60_bv',
+        'm1_sv', 'm2_sv', 'm3_sv', 'm5_sv', 'm15_sv', 'm60_sv'
+      ], []);
+    
+      const freeColumns = useMemo(() => ['symbol', 'last_price', 'high_price_24h', 'low_price_24h', 'price_change_percent_24h', 'quote_volume_24h'], []);
+      const [isPremium, setIsPremium] = useState(false);
+      const [plan, setPlan] = useState<string>('free');
+      const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(defaultColumns));
+      const [userName, setUserName] = useState<string | null>('');
+      const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
+      const [loading, setLoading] = useState(true);
+      const [isRefreshing, setIsRefreshing] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [selectedExchange, setSelectedExchange] = useState('binance');
+      const [sortConfig, setSortConfig] = useState<{ key: keyof CryptoData; direction: 'ascending' | 'descending' } | null>({ key: 'quote_volume_24h', direction: 'descending' });
+      const [baseCurrency, setBaseCurrency] = useState<string>('USDT');
+      const [itemCount, setItemCount] = useState<string>('25');
+      const [searchQuery, setSearchQuery] = useState<string>('');
+      const [symbolFilter, setSymbolFilter] = useState<string[]>([]);
+      const [symbolSearch, setSymbolSearch] = useState('');
+      const [priceChanges, setPriceChanges] = useState<{ [key: string]: 'up' | 'down' | 'neutral' }>({});
+      const [countdown, setCountdown] = useState(10);
+      const socketRef = useRef<WebSocket | null>(null);
+    
+      const changeColumns = [
+        'price_change_percent_24h', 'm1', 'm2', 'm3', 'm5', 'm10', 'm15', 'm60',
+        'm1_vol_pct', 'm2_vol_pct', 'm3_vol_pct', 'm5_vol_pct', 'm10_vol_pct', 'm15_vol_pct', 'm60_vol_pct',
+        'm1_range_pct', 'm2_range_pct', 'm3_range_pct', 'm5_range_pct', 'm10_range_pct', 'm15_range_pct', 'm60_range_pct'
+      ];
+    
+      const handleLogout = useCallback(() => {
+        localStorage.removeItem('user');
+        localStorage.removeItem('is_premium_user');
+        window.location.href = '/';
+      }, []);
+    
+      const handleUpgradeClick = () => {
+        window.location.href = '/upgrade-plan';
+      };
+    
+      const toggleColumn = (key: string) => {
+        setVisibleColumns(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(key)) newSet.delete(key);
+          else newSet.add(key);
+          return newSet;
+        });
+      };
+    
+      const fetchBackendData = useCallback(async () => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!user.access_token) {
+          handleLogout();
+          return;
         }
-        return;
-      }
-      const data: CryptoData[] = await response.json();
+        try {
+          setIsRefreshing(true);
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/binance-data/`, {
+            headers: { 'Authorization': `Bearer ${user.access_token}` },
+          });
+          if (!response.ok) throw new Error('Failed to fetch data');
+          const data = await response.json();
+          setCryptoData(data);
+          setError(null);
+        } catch (err) {
+            console.error(err)
+        } finally {
+          setIsRefreshing(false);
+          setCountdown(10);
+        }
+      }, [handleLogout]);
+    
+      useEffect(() => {
+        let isMounted = true;
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            handleLogout();
+            return;
+        }
+        const user = JSON.parse(userStr);
+        setUserName(user.first_name);
 
-      setCryptoData(prevData => {
-        const changes: { [key: string]: 'up' | 'down' | 'neutral' } = {};
-        data.forEach(newItem => {
-          const oldItem = prevData.find(item => item.symbol === newItem.symbol);
-          if (oldItem) {
-            Object.keys(newItem).forEach(key => {
-              const oldValue = oldItem[key];
-              const newValue = newItem[key];
-              if (newValue !== oldValue) {
-                const numericOldValue = typeof oldValue === 'string' ? parseFloat(oldValue) : oldValue as number;
-                const numericNewValue = typeof newValue === 'string' ? parseFloat(newValue) : newValue as number;
-
-                if (!isNaN(numericOldValue) && !isNaN(numericNewValue)) {
-                  if (numericNewValue > numericOldValue) {
-                    changes[`${newItem.symbol}-${key}`] = 'up';
-                  } else if (numericNewValue < numericOldValue) {
-                    changes[`${newItem.symbol}-${key}`] = 'down';
-                  }
+        const fetchInitialDataAndConnect = async () => {
+            try {
+                const userDetailsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`, {
+                    headers: { 'Authorization': `Bearer ${user.access_token}` },
+                });
+                if (!userDetailsResponse.ok) throw new Error('Failed to fetch user details');
+                const userDetails = await userDetailsResponse.json();
+                if (isMounted) {
+                    setIsPremium(userDetails.is_premium_user);
+                    setPlan(userDetails.subscription_plan);
                 }
-              }
-            });
+
+                const dataResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/binance-data/`, {
+                    headers: { 'Authorization': `Bearer ${user.access_token}` },
+                });
+                if (!dataResponse.ok) throw new Error('Failed to fetch initial data');
+                const data = await dataResponse.json();
+                if (isMounted) {
+                    setCryptoData(data);
+                }
+
+                connectWebSocket(user.access_token);
+
+            } catch (e) {
+                console.error(e);
+                if (isMounted) setError('Failed to load data. Please refresh.');
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        const connectWebSocket = (token: string) => {
+            const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `wss://${window.location.host}`;
+            socketRef.current = new WebSocket(`${wsUrl}/ws/crypto/?token=${token}`);
+    
+            socketRef.current.onmessage = (event) => {
+                const updatedBatch: CryptoData[] = JSON.parse(event.data);
+    
+                setCryptoData(prevData => {
+                    const changes: { [key: string]: 'up' | 'down' } = {};
+                    const dataMap = new Map(prevData.map(item => [item.symbol, item]));
+    
+                    updatedBatch.forEach(newItem => {
+                        const oldItem = dataMap.get(newItem.symbol);
+                        if (oldItem && newItem.last_price !== oldItem.last_price) {
+                            changes[`${newItem.symbol}-last_price`] = newItem.last_price > oldItem.last_price ? 'up' : 'down';
+                        }
+                        dataMap.set(newItem.symbol, { ...oldItem, ...newItem });
+                    });
+                    
+                    setPriceChanges(changes);
+                    setTimeout(() => setPriceChanges({}), 500);
+    
+                    return Array.from(dataMap.values());
+                });
+            };
+    
+            socketRef.current.onclose = () => {
+                console.log('WebSocket disconnected. Reconnecting...');
+                if (isMounted) {
+                    setTimeout(() => connectWebSocket(token), 5000);
+                }
+            };
+    
+            socketRef.current.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                socketRef.current?.close();
+            };
+        };
+
+        fetchInitialDataAndConnect();
+    
+        return () => {
+            isMounted = false;
+            socketRef.current?.close();
+        };
+    }, [handleLogout]);
+    
+      useEffect(() => {
+        if (isPremium) {
+            const countdownId = setInterval(() => {
+              setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+            }, 1000);
+            return () => clearInterval(countdownId);
           }
+      }, [isPremium]);
+    
+      const sortedAndFilteredData = useMemo(() => {
+        let filteredData = cryptoData
+          .filter(crypto =>
+            crypto.symbol &&
+            crypto.symbol.endsWith(baseCurrency) &&
+            crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+    
+        if (symbolFilter.length > 0) {
+          filteredData = filteredData.filter(crypto => symbolFilter.includes(crypto.symbol));
+        }
+    
+        if (sortConfig) {
+          filteredData.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+            if (aValue === null || aValue === undefined) return 1;
+            if (bValue === null || bValue === undefined) return -1;
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+              return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+            }
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+              return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+            }
+            return 0;
+          });
+        }
+        if (itemCount === 'All') {
+          return filteredData;
+        }
+        return filteredData.slice(0, parseInt(itemCount));
+      }, [cryptoData, sortConfig, baseCurrency, itemCount, searchQuery, symbolFilter]);
+    
+      const filteredSymbols = useMemo(() => {
+        return cryptoData
+          .filter(c => c.symbol && c.symbol.endsWith(baseCurrency))
+          .map(c => c.symbol)
+          .filter(symbol => symbol.toLowerCase().includes(symbolSearch.toLowerCase()));
+      }, [cryptoData, symbolSearch, baseCurrency]);
+    
+      const requestSort = (key: keyof CryptoData) => {
+        let direction: 'ascending' | 'descending' = 'descending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'descending') {
+          direction = 'ascending';
+        }
+        setSortConfig({ key, direction });
+      };
+    
+      const getSortIcon = (key: keyof CryptoData) => {
+        if (!sortConfig || sortConfig.key !== key) {
+          return <ChevronsUpDown className="h-4 w-4 text-gray-400" />;
+        }
+        if (sortConfig.direction === 'ascending') {
+          return <ArrowUp className="h-4 w-4" />;
+        }
+        return <ArrowDown className="h-4 w-4" />;
+      };
+    
+      const handleSymbolFilterChange = (symbol: string) => {
+        setSymbolFilter(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(symbol)) {
+            newSet.delete(symbol);
+          } else {
+            newSet.add(symbol);
+          }
+          return Array.from(newSet);
         });
-        setPriceChanges(changes);
-        setTimeout(() => setPriceChanges({}), 1000); // Reset after 1 second
-        return data;
-      });
-
-      setError(null);
-    } catch (err: unknown) {
-      console.error(err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unknown error occurred.');
-      }
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [handleLogout, refreshAndRetry, cryptoData.length, isRefreshing]);
-
-  useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      window.location.href = '/';
-      return;
-    }
-    const userData = JSON.parse(user);
-    setUserName(userData.first_name);
-
-    const fetchUserDetails = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`, {
-          headers: {
-            'Authorization': `Bearer ${userData.access_token}`,
-          },
-        });
-        if (response.ok) {
-          const userDetails: User = await response.json();
-          setIsPremium(userDetails.is_premium_user);
-          setPlan(userDetails.subscription_plan);
-          localStorage.setItem('is_premium_user', userDetails.is_premium_user.toString());
-          localStorage.setItem('user_plan', userDetails.subscription_plan);
-        }
-      } catch (error) {
-        console.error('Failed to fetch user details:', error);
-        setPlan('free');
-      }
-    };
-
-    fetchUserDetails();
-    fetchBackendData();
-  }, [fetchBackendData]);
-
-  useEffect(() => {
-    if (isPremium) {
-      const countdownId = setInterval(() => {
-        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-      return () => clearInterval(countdownId);
-    }
-  }, [isPremium]);
-
-  useEffect(() => {
-    if (isPremium && countdown === 0) {
-      fetchBackendData().then(() => {
-        setCountdown(10);
-      });
-    }
-  }, [isPremium, countdown, fetchBackendData]);
-
-  const sortedAndFilteredData = useMemo(() => {
-    let filteredData = cryptoData
-      .filter(crypto =>
-        crypto.symbol &&
-        crypto.symbol.endsWith(baseCurrency) &&
-        crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-
-    if (symbolFilter.length > 0) {
-      filteredData = filteredData.filter(crypto => symbolFilter.includes(crypto.symbol));
-    }
-
-    if (sortConfig) {
-      filteredData.sort((a, b) => {
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
-        if (aValue === null || aValue === undefined) return 1;
-        if (bValue === null || bValue === undefined) return -1;
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-        }
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(bValue);
-        }
-        return 0;
-      });
-    }
-    if (itemCount === 'All') {
-      return filteredData;
-    }
-    return filteredData.slice(0, parseInt(itemCount));
-  }, [cryptoData, sortConfig, baseCurrency, itemCount, searchQuery, symbolFilter]);
-
-  const filteredSymbols = useMemo(() => {
-    return cryptoData
-      .filter(c => c.symbol && c.symbol.endsWith(baseCurrency))
-      .map(c => c.symbol)
-      .filter(symbol => symbol.toLowerCase().includes(symbolSearch.toLowerCase()));
-  }, [cryptoData, symbolSearch, baseCurrency]);
-
-  const requestSort = (key: keyof CryptoData) => {
-    let direction: 'ascending' | 'descending' = 'descending';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'descending') {
-      direction = 'ascending';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const getSortIcon = (key: keyof CryptoData) => {
-    if (!sortConfig || sortConfig.key !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-gray-400" />;
-    }
-    if (sortConfig.direction === 'ascending') {
-      return <ArrowUp className="h-4 w-4" />;
-    }
-    return <ArrowDown className="h-4 w-4" />;
-  };
-
-  const handleSymbolFilterChange = (symbol: string) => {
-    setSymbolFilter(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(symbol)) {
-        newSet.delete(symbol);
-      } else {
-        newSet.add(symbol);
-      }
-      return Array.from(newSet);
-    });
-  };
-
-  if (loading && !userName) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-6">
-        <p className="text-gray-600">Redirecting to login...</p>
-      </div>
-    );
-  }
-
-  const formatNumber = (value: number | string | null | undefined) => {
-    if (value === null || value === undefined) return 'N/A';
-
-    const numericValue = typeof value === 'string' ? parseFloat(value) : value;
-
-    if (isNaN(numericValue)) {
-      return 'N/A';
-    }
-
-    if (numericValue > 1_000_000) return `${(numericValue / 1_000_000).toFixed(2)}M`;
-    if (numericValue > 1_000) return `${(numericValue / 1_000).toFixed(2)}K`;
-    if (Math.abs(numericValue) < 1 && numericValue !== 0) return numericValue.toFixed(6);
-    return numericValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  const renderCellContent = (key: string, crypto: CryptoData, isPremiumUser: boolean) => {
-    const value = crypto[key];
-
-    const isPremiumColumn = !freeColumns.includes(key);
-    const shouldBlur = !isPremiumUser && isPremiumColumn;
-
-    const selectedExchangeData = exchanges.find(e => e.id === selectedExchange);
-
-    if (key === 'symbol' && selectedExchangeData) {
-      let tradeLink = selectedExchangeData.baseUrl;
-      const pair = crypto.symbol.replace('USDT', '_USDT');
-      switch (selectedExchange) {
-        case 'binance': tradeLink += pair; break;
-        case 'binance_futures': tradeLink += crypto.symbol; break;
-        case 'mexc': tradeLink += pair; break;
-        case 'bybit': tradeLink += crypto.symbol.replace('USDT', '/USDT'); break;
-        case 'kucoin': tradeLink += crypto.symbol.replace('USDT', '-USDT'); break;
-        case 'trading_view': tradeLink += `BINANCE:${crypto.symbol}`; break;
-        default: tradeLink += pair; break;
-      }
-      return (
-        <a href={tradeLink} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2">
-          <span className="font-medium text-lg">{crypto.symbol}</span>
-          <div className="h-5 w-5 relative flex items-center justify-center">
-            <Image src={selectedExchangeData.logo} alt={selectedExchangeData.name} width={20} height={20} className="object-contain" />
+      };
+    
+      if (loading) {
+        return (
+          <div className="flex items-center justify-center min-h-screen bg-gray-50 p-6">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
           </div>
-        </a>
-      );
-    }
-
-    if (value === null || value === undefined) {
-      return <span className={cn("text-gray-500", shouldBlur && "blur-sm select-none")}>N/A</span>;
-    }
-
-    let formattedValue: React.ReactNode;
-    if (changeColumns.includes(key)) {
-      formattedValue = renderChange(value as number);
-    } else if (typeof value === 'number' || typeof value === 'string') {
-      formattedValue = formatNumber(value);
-    } else {
-      formattedValue = value;
-    }
-
-    if (shouldBlur) {
-      return <span className="blur-sm select-none">{formattedValue}</span>;
-    }
-
-    return formattedValue;
-  };
-
-  return (
-    <div className="h-screen bg-gray-50 font-sans flex flex-col overflow-hidden">
-      <div className="p-6 pb-0">
-        <Header />
-      </div>
-      <main className="pt-8 px-6 pb-6 flex flex-col flex-grow min-h-0">
-        <div className="container mx-auto px-0">
-          <header className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <Select onValueChange={setBaseCurrency} defaultValue="USDT">
-                <SelectTrigger className="w-[120px] bg-white">
-                  <SelectValue placeholder="Base" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USDT">USDT</SelectItem>
-                  <SelectItem value="BTC">BTC</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select onValueChange={setItemCount} defaultValue="25">
-                <SelectTrigger className="w-[100px] bg-white">
-                  <SelectValue placeholder="Count" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="All">All</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search..."
-                  className="pl-10 w-full bg-white rounded-md border-gray-300 focus:ring-2 focus:ring-indigo-200"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+        );
+      }
+    
+      const formatNumber = (value: number | string | null | undefined) => {
+        if (value === null || value === undefined) return 'N/A';
+    
+        const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+        if (isNaN(numericValue)) {
+          return 'N/A';
+        }
+    
+        if (numericValue > 1_000_000) return `${(numericValue / 1_000_000).toFixed(2)}M`;
+        if (numericValue > 1_000) return `${(numericValue / 1_000).toFixed(2)}K`;
+        if (Math.abs(numericValue) < 1 && numericValue !== 0) return numericValue.toFixed(6);
+        return numericValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+    
+      const renderCellContent = (key: string, crypto: CryptoData, isPremiumUser: boolean) => {
+        const value = crypto[key];
+    
+        const isPremiumColumn = !freeColumns.includes(key);
+        const shouldBlur = !isPremiumUser && isPremiumColumn;
+    
+        const selectedExchangeData = exchanges.find(e => e.id === selectedExchange);
+    
+        if (key === 'symbol' && selectedExchangeData) {
+          let tradeLink = selectedExchangeData.baseUrl;
+          const pair = crypto.symbol.replace('USDT', '_USDT');
+          switch (selectedExchange) {
+            case 'binance': tradeLink += pair; break;
+            case 'binance_futures': tradeLink += crypto.symbol; break;
+            case 'mexc': tradeLink += pair; break;
+            case 'bybit': tradeLink += crypto.symbol.replace('USDT', '/USDT'); break;
+            case 'kucoin': tradeLink += crypto.symbol.replace('USDT', '-USDT'); break;
+            case 'trading_view': tradeLink += `BINANCE:${crypto.symbol}`; break;
+            default: tradeLink += pair; break;
+          }
+          return (
+            <a href={tradeLink} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2">
+              <span className="font-medium text-lg">{crypto.symbol}</span>
+              <div className="h-5 w-5 relative flex items-center justify-center">
+                <Image src={selectedExchangeData.logo} alt={selectedExchangeData.name} width={20} height={20} className="object-contain" />
               </div>
-              {isPremium && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
-                  <RefreshCw className="h-4 w-4" />
-                  <span>Next update in {countdown}s</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center space-x-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" disabled={!isPremium}>Select Columns</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 max-h-[400px] overflow-y-auto" onSelect={(e) => e.preventDefault()}>
-                  <DropdownMenuLabel>Column Visibility</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {allColumns.map((column) => (
-                    <DropdownMenuCheckboxItem
-                      key={column.key}
-                      checked={visibleColumns.has(column.key)}
-                      onCheckedChange={() => toggleColumn(column.key)}
-                    >
-                      {column.title}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {!isPremium && (
-                <Button
-                  onClick={handleUpgradeClick}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl"
-                >
-                  UPGRADE
-                </Button>
-              )}
-              {plan === 'free' && (
-                <Button
-                  onClick={() => fetchBackendData()}
-                  disabled={isRefreshing} // <-- 4. DISABLE button when refreshing
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl flex items-center justify-center min-w-[120px]"
-                >
-                  <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} /> 
-                  {isRefreshing ? 'Refreshing...' : 'Refresh'} 
-                </Button>
-              )}
-            </div>
-          </header>
-
-          <section className="mb-8">
-            <div className="flex space-x-4 p-4 bg-white rounded-lg shadow-md overflow-x-auto">
-              {exchanges.map((exchange) => (
-                <div
-                  key={exchange.id}
-                  className={cn(
-                    "flex items-center justify-center space-x-2 cursor-pointer transition-colors p-3 rounded-lg flex-shrink-0 min-w-[150px]",
-                    selectedExchange === exchange.id ? "bg-gray-200 border border-gray-300" : "hover:bg-gray-100"
+            </a>
+          );
+        }
+    
+        if (value === null || value === undefined) {
+          return <span className={cn("text-gray-500", shouldBlur && "blur-sm select-none")}>N/A</span>;
+        }
+    
+        let formattedValue: React.ReactNode;
+        if (changeColumns.includes(key)) {
+          formattedValue = renderChange(value as number);
+        } else if (typeof value === 'number' || typeof value === 'string') {
+          formattedValue = formatNumber(value);
+        } else {
+          formattedValue = value;
+        }
+    
+        if (shouldBlur) {
+          return <span className="blur-sm select-none">{formattedValue}</span>;
+        }
+    
+        return formattedValue;
+      };
+    
+      return (
+        <div className="h-screen bg-gray-50 font-sans flex flex-col overflow-hidden">
+          <div className="p-6 pb-0">
+            <Header />
+          </div>
+          <main className="pt-8 px-6 pb-6 flex flex-col flex-grow min-h-0">
+            <div className="container mx-auto px-0">
+              <header className="flex items-center justify-between mb-8">
+                <div className="flex items-center space-x-4">
+                  <Select onValueChange={setBaseCurrency} defaultValue="USDT">
+                    <SelectTrigger className="w-[120px] bg-white">
+                      <SelectValue placeholder="Base" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USDT">USDT</SelectItem>
+                      <SelectItem value="BTC">BTC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select onValueChange={setItemCount} defaultValue="25">
+                    <SelectTrigger className="w-[100px] bg-white">
+                      <SelectValue placeholder="Count" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="All">All</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search..."
+                      className="pl-10 w-full bg-white rounded-md border-gray-300 focus:ring-2 focus:ring-indigo-200"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  {isPremium && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <RefreshCw className="h-4 w-4" />
+                      <span>Live Updates Active</span>
+                    </div>
                   )}
-                  onClick={() => setSelectedExchange(exchange.id)}
-                >
-                  <Image src={exchange.logo} alt={exchange.name} width={40} height={40} className="object-contain" />
-                  <span className="font-medium text-gray-700">{exchange.name}</span>
                 </div>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <section className="flex-grow min-h-0">
-          <Card className="h-full p-0 border-gray-200 overflow-hidden rounded-lg flex flex-col">
-            <CardContent className="p-0 overflow-hidden flex-grow">
-              <div className="h-full overflow-auto">
-                <Table className="min-w-full">
-                  <TableHeader className="bg-gray-100 sticky top-0 z-10">
-                    <TableRow className="border-b-0">
-                      {allColumns.filter(col => visibleColumns.has(col.key)).map((col) => (
-                        <TableHead
-                          key={col.key}
-                          className={cn(
-                            "px-2 py-2 text-left",
-                            col.key === 'symbol' && "sticky left-0 bg-gray-100"
-                          )}
+                <div className="flex items-center space-x-4">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" disabled={!isPremium}>Select Columns</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 max-h-[400px] overflow-y-auto" onSelect={(e) => e.preventDefault()}>
+                      <DropdownMenuLabel>Column Visibility</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {allColumns.map((column) => (
+                        <DropdownMenuCheckboxItem
+                          key={column.key}
+                          checked={visibleColumns.has(column.key)}
+                          onCheckedChange={() => toggleColumn(column.key)}
                         >
-                          <div className="flex items-center whitespace-nowrap">
-                            <span className="cursor-pointer" onClick={() => col.key !== 'symbol' && requestSort(col.key as keyof CryptoData)}>
-                              {col.title}
-                            </span>
-                            {col.key === 'symbol' ? (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="ml-2 h-6 w-6">
-                                    <Filter className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-64 p-2" onSelect={(e) => e.preventDefault()}>
-                                  <div className="flex items-center border-b pb-2 mb-2">
-                                    <Search className="h-4 w-4 mr-2 text-gray-400" />
-                                    <Input
-                                      placeholder="Search symbols..."
-                                      value={symbolSearch}
-                                      onChange={(e) => setSymbolSearch(e.target.value)}
-                                      className="h-8 text-sm"
-                                    />
-                                  </div>
-                                  <div className="max-h-60 overflow-y-auto">
-                                    {filteredSymbols.map(symbol => (
-                                      <div key={symbol} className="flex items-center space-x-2 p-1">
-                                        <Checkbox
-                                          id={symbol}
-                                          checked={symbolFilter.includes(symbol)}
-                                          onCheckedChange={() => handleSymbolFilterChange(symbol)}
-                                        />
-                                        <label htmlFor={symbol} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                          {symbol}
-                                        </label>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            ) : (
-                              <span className="cursor-pointer" onClick={() => requestSort(col.key as keyof CryptoData)}>
-                                {getSortIcon(col.key as keyof CryptoData)}
-                              </span>
-                            )}
-                          </div>
-                        </TableHead>
+                          {column.title}
+                        </DropdownMenuCheckboxItem>
                       ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading && cryptoData.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={visibleColumns.size} className="h-24 text-center">
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                            <span className="ml-2">Loading initial data...</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : sortedAndFilteredData.length > 0 ? (
-                      sortedAndFilteredData.map((crypto) => (
-                        <TableRow key={crypto.symbol} className="border-gray-200 hover:bg-gray-50 transition-colors">
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+    
+                  {!isPremium && (
+                    <Button
+                      onClick={handleUpgradeClick}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl"
+                    >
+                      UPGRADE
+                    </Button>
+                  )}
+                  {plan === 'free' && (
+                    <Button
+                      onClick={fetchBackendData}
+                      disabled={isRefreshing}
+                      className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl flex items-center justify-center min-w-[120px]"
+                    >
+                      <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} /> 
+                      {isRefreshing ? 'Refreshing...' : `Refresh (${countdown}s)`} 
+                    </Button>
+                  )}
+                </div>
+              </header>
+    
+              <section className="mb-8">
+                <div className="flex space-x-4 p-4 bg-white rounded-lg shadow-md overflow-x-auto">
+                  {exchanges.map((exchange) => (
+                    <div
+                      key={exchange.id}
+                      className={cn(
+                        "flex items-center justify-center space-x-2 cursor-pointer transition-colors p-3 rounded-lg flex-shrink-0 min-w-[150px]",
+                        selectedExchange === exchange.id ? "bg-gray-200 border border-gray-300" : "hover:bg-gray-100"
+                      )}
+                      onClick={() => setSelectedExchange(exchange.id)}
+                    >
+                      <Image src={exchange.logo} alt={exchange.name} width={40} height={40} className="object-contain" />
+                      <span className="font-medium text-gray-700">{exchange.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+    
+            <section className="flex-grow min-h-0">
+              <Card className="h-full p-0 border-gray-200 overflow-hidden rounded-lg flex flex-col">
+                <CardContent className="p-0 overflow-hidden flex-grow">
+                  <div className="h-full overflow-auto">
+                    <Table className="min-w-full">
+                      <TableHeader className="bg-gray-100 sticky top-0 z-10">
+                        <TableRow className="border-b-0">
                           {allColumns.filter(col => visibleColumns.has(col.key)).map((col) => (
-                            <TableCell
+                            <TableHead
                               key={col.key}
                               className={cn(
                                 "px-2 py-2 text-left",
-                                col.key === 'symbol' && "sticky left-0 bg-white",
-                                priceChanges[`${crypto.symbol}-${col.key}`] === 'up' && 'bg-green-100 animate-pulse-green',
-                                priceChanges[`${crypto.symbol}-${col.key}`] === 'down' && 'bg-red-100 animate-pulse-red'
+                                col.key === 'symbol' && "sticky left-0 bg-gray-100"
                               )}
                             >
-                              {renderCellContent(col.key, crypto, isPremium)}
-                            </TableCell>
+                              <div className="flex items-center whitespace-nowrap">
+                                <span className="cursor-pointer" onClick={() => col.key !== 'symbol' && requestSort(col.key as keyof CryptoData)}>
+                                  {col.title}
+                                </span>
+                                {col.key === 'symbol' ? (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="ml-2 h-6 w-6">
+                                        <Filter className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="w-64 p-2" onSelect={(e) => e.preventDefault()}>
+                                      <div className="flex items-center border-b pb-2 mb-2">
+                                        <Search className="h-4 w-4 mr-2 text-gray-400" />
+                                        <Input
+                                          placeholder="Search symbols..."
+                                          value={symbolSearch}
+                                          onChange={(e) => setSymbolSearch(e.target.value)}
+                                          className="h-8 text-sm"
+                                        />
+                                      </div>
+                                      <div className="max-h-60 overflow-y-auto">
+                                        {filteredSymbols.map(symbol => (
+                                          <div key={symbol} className="flex items-center space-x-2 p-1">
+                                            <Checkbox
+                                              id={symbol}
+                                              checked={symbolFilter.includes(symbol)}
+                                              onCheckedChange={() => handleSymbolFilterChange(symbol)}
+                                            />
+                                            <label htmlFor={symbol} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                              {symbol}
+                                            </label>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                ) : (
+                                  <span className="cursor-pointer" onClick={() => requestSort(col.key as keyof CryptoData)}>
+                                    {getSortIcon(col.key as keyof CryptoData)}
+                                  </span>
+                                )}
+                              </div>
+                            </TableHead>
                           ))}
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={visibleColumns.size} className="h-24 text-center">
-                          <span className="text-gray-500">
-                            {error || 'No data to display. Try changing filters.'}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      </main>
-    </div>
-  );
+                      </TableHeader>
+                      <TableBody>
+                        {sortedAndFilteredData.length > 0 ? (
+                          sortedAndFilteredData.map((crypto) => (
+                            <TableRow key={crypto.symbol} className="border-gray-200 hover:bg-gray-50 transition-colors">
+                              {allColumns.filter(col => visibleColumns.has(col.key)).map((col) => (
+                                <TableCell
+                                  key={col.key}
+                                  className={cn(
+                                    "px-2 py-2 text-left",
+                                    col.key === 'symbol' && "sticky left-0 bg-white",
+                                    priceChanges[`${crypto.symbol}-${col.key}`] === 'up' && 'bg-green-100 animate-pulse-green',
+                                    priceChanges[`${crypto.symbol}-${col.key}`] === 'down' && 'bg-red-100 animate-pulse-red'
+                                  )}
+                                >
+                                  {renderCellContent(col.key, crypto, isPremium)}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={visibleColumns.size} className="h-24 text-center">
+                              <span className="text-gray-500">
+                                {error || 'No data to display. Try changing filters.'}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          </main>
+        </div>
+      );
 }
