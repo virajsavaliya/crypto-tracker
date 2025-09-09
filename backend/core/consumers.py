@@ -17,19 +17,17 @@ def get_user(token_key):
 class CryptoConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = AnonymousUser()
+        self.room_group_name = None
+        
         try:
-            # Extract token from query string
             token = self.scope['query_string'].decode().split('=')[1]
             self.user = await get_user(token)
         except (IndexError, UnicodeDecodeError):
             pass
 
-        if self.user.is_authenticated:
-            if self.user.is_premium_user:
-                self.room_group_name = 'crypto_premium'
-            else:
-                self.room_group_name = 'crypto_free'
-            
+        # Only allow enterprise users to connect to the WebSocket
+        if self.user.is_authenticated and self.user.subscription_plan == 'enterprise':
+            self.room_group_name = 'crypto_enterprise'
             await self.channel_layer.group_add(
                 self.room_group_name,
                 self.channel_name
@@ -39,7 +37,7 @@ class CryptoConsumer(AsyncWebsocketConsumer):
             await self.close()
 
     async def disconnect(self, close_code):
-        if hasattr(self, 'room_group_name'):
+        if self.room_group_name:
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name

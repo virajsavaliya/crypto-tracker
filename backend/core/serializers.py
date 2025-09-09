@@ -6,7 +6,6 @@ from .models import User, Alert, Payment, CryptoData, FavoriteCrypto
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        # Only include the fields the user needs to provide
         fields = ['email', 'first_name', 'last_name', 'mobile_number']
         extra_kwargs = {
             'first_name': {'required': True},
@@ -15,19 +14,17 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        # Set the username to be the email, as intended
         user = User.objects.create_user(
             username=validated_data['email'],
             email=validated_data['email'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             mobile_number=validated_data.get('mobile_number', ''),
-            is_active=False, # Start with an inactive account until activation
+            is_active=False,
             subscription_plan='free',
             is_premium_user=False
         )
         return user
-
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -51,28 +48,34 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = '__all__'
 
-# --- NEW AND UPDATED SERIALIZERS FOR CRYPTO DATA ---
-
 class CryptoDataSerializer(serializers.ModelSerializer):
-    """
-    The FULL serializer for premium users. Includes all fields from the model.
-    """
+    """ FULL serializer for Enterprise users. """
     class Meta:
         model = CryptoData
         fields = '__all__'
+
+class CryptoDataBasicSerializer(serializers.ModelSerializer):
+    """ INTERMEDIATE serializer for Basic users. """
+    class Meta:
+        model = CryptoData
+        fields = [
+            'symbol', 'last_price', 'high_price_24h', 'low_price_24h', 
+            'price_change_percent_24h', 'quote_volume_24h',
+            'm1', 'm5', 'm10', 'm15', 'm60',
+            'm1_vol', 'm5_vol', 'm10_vol', 'm15_vol', 'm60_vol',
+            'm1_range_pct', 'm5_range_pct', 'm15_range_pct', 'm60_range_pct',
+        ]
         
 class CryptoDataFreeSerializer(serializers.ModelSerializer):
-    """
-    A LIMITED serializer for free users. It only includes the basic, non-premium fields.
-    """
+    """ LIMITED serializer for Free users. """
     class Meta:
         model = CryptoData
         fields = [
             'symbol', 'last_price', 'high_price_24h', 'low_price_24h', 
             'price_change_percent_24h', 'quote_volume_24h'
         ]
-# --- NEW SERIALIZER FOR FAVORITES ---
+
 class FavoriteCryptoSerializer(serializers.ModelSerializer):
     class Meta:
         model = FavoriteCrypto
-        fields = ['id', 'symbol'] # We only need to send the symbol back and forth
+        fields = ['id', 'symbol']

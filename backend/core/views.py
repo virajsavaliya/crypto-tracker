@@ -19,7 +19,7 @@ from .models import User, Alert, Payment, CryptoData, FavoriteCrypto
 from .serializers import (
     RegisterSerializer, LoginSerializer, LoginWithTokenSerializer,
     UserSerializer, AlertSerializer, PaymentSerializer,
-    CryptoDataSerializer, CryptoDataFreeSerializer, FavoriteCryptoSerializer
+    CryptoDataSerializer, CryptoDataFreeSerializer, CryptoDataBasicSerializer
 )
 
 # --- Import the tasks ---
@@ -53,29 +53,18 @@ stripe_price_ids = {
     'enterprise': os.environ.get('STRIPE_PRICE_ID_ENTERPRISE'),
 }
 
-# File: core/views.py
-
 class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            # Let the serializer create the user
             user = serializer.save() 
-            
-            # Generate the activation token
             token = str(uuid.uuid4())
             user.activation_token = token
             user.save()
-
-            # Send the activation email
             send_activation_email_task(user.email, user.first_name, token)
-
             return Response({'message': 'User registered successfully. An activation email has been sent.'}, status=status.HTTP_201_CREATED)
-        
-        # If the serializer is not valid, it will return the errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    
 class RequestLoginTokenView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -88,11 +77,7 @@ class RequestLoginTokenView(APIView):
                 login_token = str(uuid.uuid4())
                 user.login_token = login_token
                 user.save()
-
-                # *** CHANGE THIS LINE ***
-                # Call the function directly instead of using .delay()
                 send_login_token_email_task(email, user.first_name, login_token)
-
                 return Response({'message': 'A login link has been sent to your email.'}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 return Response({'error': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)
@@ -287,12 +272,13 @@ class BinanceDataView(APIView):
     def get(self, request):
         try:
             user = request.user
-            
-            if user.is_premium_user:
-                crypto_data = CryptoData.objects.all().order_by('-quote_volume_24h')
+            crypto_data = CryptoData.objects.all().order_by('-quote_volume_24h')
+
+            if user.subscription_plan == 'enterprise':
                 serializer = CryptoDataSerializer(crypto_data, many=True)
-            else:
-                crypto_data = CryptoData.objects.all().order_by('-quote_volume_24h')
+            elif user.subscription_plan == 'basic':
+                serializer = CryptoDataBasicSerializer(crypto_data, many=True)
+            else: # Free plan
                 serializer = CryptoDataFreeSerializer(crypto_data, many=True)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
