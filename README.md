@@ -20,5 +20,5 @@ listen --forward-to http://localhost:8000/stripe-webhook/
 stripe listen --forward-to localhost:8000/stripe-webhook/
 
 git add .
-git commit -m "Update redis"
+git commit -m "Update frontend"
 git push origin main
