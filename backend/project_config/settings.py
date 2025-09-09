@@ -6,10 +6,20 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+# --- SECURITY SETTINGS ---
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = ["*"]
 
+# Get hostnames from environment variables for production
+BACKEND_HOSTNAME = os.environ.get('BACKEND_HOSTNAME')
+FRONTEND_URL = os.environ.get('FRONTEND_URL')
+
+# Add your backend hostname to ALLOWED_HOSTS
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+if BACKEND_HOSTNAME:
+    ALLOWED_HOSTS.append(BACKEND_HOSTNAME)
+
+# --- APPLICATION DEFINITION ---
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -24,11 +34,13 @@ INSTALLED_APPS = [
     'channels',
 ]
 
+# --- MIDDLEWARE (Corrected Order) ---
 MIDDLEWARE = [
+    # CORS Middleware should be placed as high as possible
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -36,20 +48,22 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.up\.railway\.app$",
-    r"^http://localhost:3000$",
-]
+# --- CORS SETTINGS (Updated) ---
 CORS_ALLOWED_ORIGINS = [
-    "https://crypto-tracker-web-production.up.railway.app",
     "http://localhost:3000",
 ]
-CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = [
-    "https://crypto-tracker-web-production.up.railway.app",
-    "http://localhost:3000",
-]
+if FRONTEND_URL:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+]
+if FRONTEND_URL:
+    CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
+
+# --- URLS, TEMPLATES, and APPLICATIONS ---
 ROOT_URLCONF = 'project_config.urls'
 WSGI_APPLICATION = 'project_config.wsgi.application'
 ASGI_APPLICATION = 'project_config.asgi.application'
@@ -70,10 +84,9 @@ TEMPLATES = [
     },
 ]
 
+# --- DATABASE ---
 if 'DATABASE_URL' in os.environ:
-    DATABASES = {
-        'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
-    }
+    DATABASES = {'default': dj_database_url.config(conn_max_age=600, ssl_require=True)}
 else:
     DATABASES = {
         'default': {
@@ -86,19 +99,17 @@ else:
         }
     }
 
+# --- CHANNELS ---
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379')],
-        },
+        "CONFIG": { "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379')] },
     },
 }
 
+# --- REST FRAMEWORK and AUTHENTICATION ---
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ]
+    'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication']
 }
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -108,6 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 AUTH_USER_MODEL = 'core.User'
 
+# --- INTERNATIONALIZATION and STATIC FILES ---
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
@@ -116,12 +128,12 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# --- EMAIL and STRIPE CONFIGURATION ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-FRONTEND_URL = os.environ.get('FRONTEND_URL')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
