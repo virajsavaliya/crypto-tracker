@@ -68,3 +68,4 @@ websockets==15.0.1
 whitenoise==6.9.0
 zope.interface==7.2
 celery
+django-redis
