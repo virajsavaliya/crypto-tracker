@@ -1,3 +1,2 @@
-web: gunicorn project_config.wsgi --log-file -
-worker: celery -A project_config worker -l info --concurrency=4
-websocket: python manage.py start_websocket
+web: daphne -b 0.0.0.0 -p $PORT project_config.asgi:application
+data_worker: python manage.py start_websocket
