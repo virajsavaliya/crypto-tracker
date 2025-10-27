@@ -38,14 +38,15 @@ export default function LoginWithTokenPage() {
             email: data.email,
             access_token: data.access,
             refresh_token: data.refresh,
+            subscription_plan: data.subscription_plan || 'free',
+            is_premium_user: data.is_premium_user || false,
           }));
           setMessage('Login successful. Redirecting to dashboard...');
           router.push('/dashboard');
         } else {
           setMessage(data.error || 'Login failed. Invalid or expired token.');
         }
-      } catch (error) {
-        console.error('Login failed:', error);
+      } catch (err) {
         setMessage('An error occurred during login. Please try again.');
       }
     };

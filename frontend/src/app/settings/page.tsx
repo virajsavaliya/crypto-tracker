@@ -149,8 +149,7 @@ const SettingsPage = () => {
       setPayments(paymentData);
       profileForm.reset(userData);
 
-    } catch (error) {
-      console.error('Fetching data failed:', error);
+    } catch (err) {
     } finally {
       setLoading(false);
     }
@@ -183,7 +182,7 @@ const SettingsPage = () => {
         const errorData = await response.json();
         setUpdateMessage(errorData.error || 'Failed to update profile.');
       }
-    } catch {
+    } catch (err) {
       setUpdateMessage('Network error. Please try again.');
     } finally {
       setLoading(false);

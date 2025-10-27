@@ -24,7 +24,7 @@ const ActivatePage = () => {
         });
         const data = await response.json();
         setMessage(data.message);
-      } catch {
+      } catch (err) {
         setMessage('Failed to activate account. Please try again or contact support.');
       }
     };

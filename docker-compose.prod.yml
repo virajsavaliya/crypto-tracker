@@ -1,0 +1,76 @@
+# docker-compose.prod.yml (override)
+# Use pre-built images from ECR instead of local builds.
+# Set TAG in your shell: export TAG=$(git rev-parse --short HEAD) or a version string.
+
+services:
+  backend1:
+    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
+    env_file:
+      - ./backend/.env
+    environment:
+      - DOCKER_ENV=1
+      - DEBUG=False
+      - DATABASE_URL=postgresql://postgres:postgres@pgbouncer:5432/crypto_tracker?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - BACKEND_URL=${BACKEND_URL:-https://yourdomain.com}
+      - FRONTEND_URL=${FRONTEND_URL:-https://yourdomain.com}
+    # keep volumes/depends_on/healthcheck from base file
+
+  celery-worker:
+    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
+    command: celery -A project_config worker --loglevel=info --concurrency=2 --prefetch-multiplier=1 --max-memory-per-child=150000 --max-tasks-per-child=100
+    env_file:
+      - ./backend/.env
+    environment:
+      - DOCKER_ENV=1
+      - DEBUG=False
+      - DATABASE_URL=postgresql://postgres:postgres@pgbouncer:5432/crypto_tracker?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+
+  celery-beat:
+    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
+    command: celery -A project_config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - ./backend/.env
+    environment:
+      - DOCKER_ENV=1
+      - DEBUG=False
+      - DATABASE_URL=postgresql://postgres:postgres@pgbouncer:5432/crypto_tracker?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+
+  data-worker:
+    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
+    env_file:
+      - ./backend/.env
+    environment:
+      - DOCKER_ENV=1
+      - DEBUG=False
+      - DATABASE_URL=postgresql://postgres:postgres@pgbouncer:5432/crypto_tracker?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+
+  calc-worker:
+    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
+    env_file:
+      - ./backend/.env
+    environment:
+      - DOCKER_ENV=1
+      - DEBUG=False
+      - DATABASE_URL=postgresql://postgres:postgres@pgbouncer:5432/crypto_tracker?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+
+  frontend:
+    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/frontend:${TAG}
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://yourdomain.com}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-wss://yourdomain.com}
+      - NEXT_TELEMETRY_DISABLED=1
+    # Remove public port exposure; Nginx will front it.
+    ports: []
+
+# nginx, postgres, pgbouncer, redis inherit from base compose

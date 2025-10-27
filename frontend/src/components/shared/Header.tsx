@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Bell, UserCircle, LogOut, Award, Settings } from 'lucide-react';
+import { TrendingUp, Bell, User, LogOut, Award, Settings } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useEffect, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -87,8 +87,8 @@ const Header = () => {
       // Execute original request with new token
       await originalRequest(newToken);
 
-    } catch (error) {
-      processQueue(error as Error, null);
+    } catch (err) {
+      processQueue(err as Error, null);
       handleLogout();
     } finally {
       isRefreshing = false;
@@ -123,8 +123,7 @@ const Header = () => {
       setUser(data);
       localStorage.setItem('is_premium_user', data.is_premium_user.toString());
       localStorage.setItem('user_plan', data.subscription_plan);
-    } catch (error) {
-      console.error('Fetching user details failed:', error);
+    } catch (err) {
       if (!isRetry) {
         handleLogout();
       }
@@ -141,7 +140,7 @@ const Header = () => {
         <span className="text-lg font-bold">Crypto Tracker</span>
         <Button variant="ghost" asChild>
           <Link href="/dashboard">
-            <LayoutDashboard className="h-4 w-4 mr-1" />
+            <TrendingUp className="h-4 w-4 mr-1" />
             Live
           </Link>
         </Button>
@@ -154,16 +153,18 @@ const Header = () => {
       </div>
       <div className="flex items-center space-x-2">
         <div className="text-sm text-gray-500 flex items-center space-x-2">
-            <span
-            className={cn(
-                'font-semibold',
-                user?.subscription_plan === 'enterprise' ? 'text-green-600' :
-                user?.subscription_plan === 'basic' ? 'text-blue-600' :
-                    'text-gray-600'
-            )}
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/plan-management')}
+              className={cn(
+                'font-semibold px-3 py-1 h-auto hover:bg-gray-100',
+                user?.subscription_plan === 'enterprise' ? 'text-green-600 hover:text-green-700' :
+                user?.subscription_plan === 'basic' ? 'text-blue-600 hover:text-blue-700' :
+                    'text-gray-600 hover:text-gray-700'
+              )}
             >
-            {user?.subscription_plan ? user.subscription_plan.charAt(0).toUpperCase() + user.subscription_plan.slice(1) : ''} Plan
-            </span>
+              {user?.subscription_plan ? user.subscription_plan.charAt(0).toUpperCase() + user.subscription_plan.slice(1) : ''} Plan
+            </Button>
             {user?.subscription_plan === 'free' && (
                 <Button
                     onClick={() => router.push('/upgrade-plan')}
@@ -177,7 +178,7 @@ const Header = () => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="rounded-full size-9 p-0">
-              <UserCircle className="h-7 w-7" />
+              <User className="h-7 w-7" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

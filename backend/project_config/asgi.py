@@ -9,11 +9,16 @@ django_asgi_app = get_asgi_application()
 
 # Now it's safe to import your routing and other components.
 from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from channels.security.websocket import AllowedHostsOriginValidator
 import core.routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": URLRouter(
-        core.routing.websocket_urlpatterns
+    # Wrap websocket handling with origin + auth middleware.
+    "websocket": AllowedHostsOriginValidator(
+        AuthMiddlewareStack(
+            URLRouter(core.routing.websocket_urlpatterns)
+        )
     ),
 })

@@ -35,7 +35,7 @@ class LoginWithTokenSerializer(serializers.Serializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'email', 'mobile_number', 'username', 'subscription_plan', 'is_premium_user')
+        fields = ('first_name', 'last_name', 'email', 'mobile_number', 'username', 'subscription_plan', 'is_premium_user', 'plan_start_date', 'plan_end_date')
         
 class AlertSerializer(serializers.ModelSerializer):
     class Meta:
@@ -61,9 +61,29 @@ class CryptoDataBasicSerializer(serializers.ModelSerializer):
         fields = [
             'symbol', 'last_price', 'high_price_24h', 'low_price_24h', 
             'price_change_percent_24h', 'quote_volume_24h',
-            'm1', 'm5', 'm10', 'm15', 'm60',
+            # Basic trading data
+            'bid_price', 'ask_price', 'spread',
+            # Time-based percentage changes
+            'm1', 'm2', 'm3', 'm5', 'm10', 'm15', 'm60',
+            # Return percentages (r_pct fields)
+            'm1_r_pct', 'm2_r_pct', 'm3_r_pct', 'm5_r_pct', 'm10_r_pct', 'm15_r_pct', 'm60_r_pct',
+            # Volume percentages
+            'm1_vol_pct', 'm2_vol_pct', 'm3_vol_pct', 'm5_vol_pct', 'm10_vol_pct', 'm15_vol_pct', 'm60_vol_pct',
+            # Range percentages  
+            'm1_range_pct', 'm2_range_pct', 'm3_range_pct', 'm5_range_pct', 'm10_range_pct', 'm15_range_pct', 'm60_range_pct',
+            # Volume data
             'm1_vol', 'm5_vol', 'm10_vol', 'm15_vol', 'm60_vol',
-            'm1_range_pct', 'm5_range_pct', 'm15_range_pct', 'm60_range_pct',
+            # Low/High data
+            'm1_low', 'm1_high', 'm2_low', 'm2_high', 'm3_low', 'm3_high',
+            'm5_low', 'm5_high', 'm10_low', 'm10_high', 'm15_low', 'm15_high', 'm60_low', 'm60_high',
+            # Net Volume (NV)
+            'm1_nv', 'm2_nv', 'm3_nv', 'm5_nv', 'm10_nv', 'm15_nv', 'm60_nv',
+            # RSI indicators
+            'rsi_1m', 'rsi_3m', 'rsi_5m', 'rsi_15m',
+            # Base Volume (BV)
+            'm1_bv', 'm2_bv', 'm3_bv', 'm5_bv', 'm10_bv', 'm15_bv', 'm60_bv',
+            # Sell Volume (SV)  
+            'm1_sv', 'm2_sv', 'm3_sv', 'm5_sv', 'm10_sv', 'm15_sv', 'm60_sv',
         ]
         
 class CryptoDataFreeSerializer(serializers.ModelSerializer):

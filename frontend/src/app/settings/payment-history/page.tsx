@@ -41,10 +41,8 @@ const PaymentHistoryPage = () => {
           const data = await response.json();
           setPayments(data);
         } else {
-          console.error('Failed to fetch payment history');
         }
-      } catch (error) {
-        console.error('An error occurred while fetching payment history:', error);
+      } catch (err) {
       } finally {
         setLoading(false);
       }

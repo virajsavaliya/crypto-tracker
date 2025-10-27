@@ -1,0 +1,181 @@
+/* Enhanced Blink Animations for Crypto Dashboard */
+
+@keyframes blinkGreen {
+  0% { 
+    background-color: transparent; 
+    transform: scale(1);
+    box-shadow: none;
+  }
+  30% { 
+    background-color: rgba(34, 197, 94, 0.5); 
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.7);
+    border: 2px solid rgba(34, 197, 94, 0.8);
+  }
+  100% { 
+    background-color: transparent; 
+    transform: scale(1);
+    box-shadow: none;
+    border: none;
+  }
+}
+
+@keyframes blinkRed {
+  0% { 
+    background-color: transparent; 
+    transform: scale(1);
+    box-shadow: none;
+  }
+  30% { 
+    background-color: rgba(239, 68, 68, 0.5); 
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.7);
+    border: 2px solid rgba(239, 68, 68, 0.8);
+  }
+  100% { 
+    background-color: transparent; 
+    transform: scale(1);
+    box-shadow: none;
+    border: none;
+  }
+}
+
+.blink-green {
+  animation: blinkGreen 1.2s ease-in-out !important;
+  -webkit-animation: blinkGreen 1.2s ease-in-out !important;
+  border-radius: 6px !important;
+  transition: all 0.3s ease !important;
+}
+
+.blink-red {
+  animation: blinkRed 1.2s ease-in-out !important;
+  -webkit-animation: blinkRed 1.2s ease-in-out !important;
+  border-radius: 6px !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Ensure animations work in all browsers */
+@-webkit-keyframes blinkGreen {
+  0% { 
+    background-color: transparent; 
+    -webkit-transform: scale(1);
+    -webkit-box-shadow: none;
+  }
+  30% { 
+    background-color: rgba(34, 197, 94, 0.3); 
+    -webkit-transform: scale(1.05);
+    -webkit-box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+  }
+  100% { 
+    background-color: transparent; 
+    -webkit-transform: scale(1);
+    -webkit-box-shadow: none;
+  }
+}
+
+@-webkit-keyframes blinkRed {
+  0% { 
+    background-color: transparent; 
+    -webkit-transform: scale(1);
+    -webkit-box-shadow: none;
+  }
+  30% { 
+    background-color: rgba(239, 68, 68, 0.3); 
+    -webkit-transform: scale(1.05);
+    -webkit-box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+  }
+  100% { 
+    background-color: transparent; 
+    -webkit-transform: scale(1);
+    -webkit-box-shadow: none;
+  }
+}
+
+.blink-green {
+  animation: blinkGreen 1.2s ease-in-out !important;
+  -webkit-animation: blinkGreen 1.2s ease-in-out !important;
+  border-radius: 6px !important;
+  transition: all 0.3s ease !important;
+}
+
+.blink-red {
+  animation: blinkRed 1.2s ease-in-out !important;
+  -webkit-animation: blinkRed 1.2s ease-in-out !important;
+  border-radius: 6px !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Pulse animations for continuous changes */
+@keyframes pulse-green {
+  0%, 100% { 
+    background-color: rgba(34, 197, 94, 0.1);
+  }
+  50% { 
+    background-color: rgba(34, 197, 94, 0.3);
+  }
+}
+
+@keyframes pulse-red {
+  0%, 100% { 
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+  50% { 
+    background-color: rgba(239, 68, 68, 0.3);
+  }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 0.8s ease-in-out;
+}
+
+.animate-pulse-red {
+  animation: pulse-red 0.8s ease-in-out;
+}
+
+/* Custom scrollbar styles */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+/* Shadow for sticky column */
+.shadow-r {
+  box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}

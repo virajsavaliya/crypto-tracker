@@ -18,24 +18,70 @@ class User(AbstractUser):
     subscription_plan = models.CharField(max_length=20, choices=SUBSCRIPTION_PLANS, default='free')
     stripe_customer_id = models.CharField(max_length=50, blank=True, null=True)
     is_premium_user = models.BooleanField(default=False)
+    
+    # Plan Management Fields
+    plan_start_date = models.DateTimeField(null=True, blank=True, help_text='Date when current plan started')
+    plan_end_date = models.DateTimeField(null=True, blank=True, help_text='Date when current plan expires')
+    
+    # Telegram Integration Fields
+    telegram_chat_id = models.CharField(max_length=100, blank=True, null=True, help_text='Telegram Chat ID for notifications')
+    telegram_username = models.CharField(max_length=100, blank=True, null=True, help_text='Telegram Username (optional)')
+    telegram_connected = models.BooleanField(default=False, help_text='Is Telegram connected for alerts')
+    telegram_setup_token = models.CharField(max_length=100, blank=True, null=True, help_text='Token for Telegram setup verification')
+    
     groups = models.ManyToManyField('auth.Group', related_name='core_user_set', blank=True)
     user_permissions = models.ManyToManyField('auth.Permission', related_name='core_user_permissions_set', blank=True)
     def __str__(self):
         return self.email
 
 class Alert(models.Model):
-    ALERT_TYPES = (('price_movement', 'Price Movement'), ('volume_change', 'Volume Change'), ('new_coin_listing', 'New Coin Listing'),)
-    TIME_PERIODS = (('1m', '1 minute'), ('5m', '5 minutes'), ('15m', '15 minutes'), ('1h', '1 hour'), ('24h', '24 hours'),)
+    ALERT_TYPES = (
+        ('price_movement', 'Price Movement'), 
+        ('volume_change', 'Volume Change'), 
+        ('new_coin_listing', 'New Coin Listing'),
+        ('rsi_overbought', 'RSI Overbought (>70)'),
+        ('rsi_oversold', 'RSI Oversold (<30)'),
+        ('pump_alert', 'Pump Alert (>5% in 1m)'),
+        ('dump_alert', 'Dump Alert (<-5% in 1m)'),
+    )
+    TIME_PERIODS = (
+        ('1m', '1 minute'), 
+        ('5m', '5 minutes'), 
+        ('15m', '15 minutes'), 
+        ('1h', '1 hour'), 
+        ('24h', '24 hours'),
+    )
+    NOTIFICATION_CHANNELS = (
+        ('email', 'Email'),
+        ('telegram', 'Telegram'),
+        ('both', 'Email + Telegram'),
+    )
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alerts')
     alert_type = models.CharField(max_length=20, choices=ALERT_TYPES)
     coin_symbol = models.CharField(max_length=20, blank=True, null=True)
     condition_value = models.FloatField(blank=True, null=True)
     time_period = models.CharField(max_length=5, choices=TIME_PERIODS, blank=True, null=True)
     any_coin = models.BooleanField(default=False)
-    notification_channels = models.CharField(max_length=50, blank=True, null=True)
+    notification_channels = models.CharField(max_length=50, choices=NOTIFICATION_CHANNELS, default='email')
+    
+    # Telegram Integration
+    telegram_chat_id = models.CharField(max_length=100, blank=True, null=True, help_text='User Telegram Chat ID')
+    is_active = models.BooleanField(default=True)
+    last_triggered = models.DateTimeField(null=True, blank=True)
+    trigger_count = models.IntegerField(default=0)
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    
     def __str__(self):
         return f"{self.user.email} - {self.alert_type} for {self.coin_symbol or 'Any Coin'}"
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['alert_type', 'is_active']),
+            models.Index(fields=['coin_symbol', 'is_active']),
+            models.Index(fields=['user', 'is_active']),
+        ]
 
 class Payment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
@@ -122,6 +168,15 @@ class CryptoData(models.Model):
     m10_sv = models.DecimalField(max_digits=30, decimal_places=10, null=True, blank=True)
     m15_sv = models.DecimalField(max_digits=30, decimal_places=10, null=True, blank=True)
     m60_sv = models.DecimalField(max_digits=30, decimal_places=10, null=True, blank=True)
+    
+    # Return % fields (price change percentage for different timeframes)
+    m1_r_pct = models.DecimalField(max_digits=20, decimal_places=10, null=True, blank=True, help_text='1 minute return percentage')
+    m2_r_pct = models.DecimalField(max_digits=20, decimal_places=10, null=True, blank=True, help_text='2 minute return percentage')
+    m3_r_pct = models.DecimalField(max_digits=20, decimal_places=10, null=True, blank=True, help_text='3 minute return percentage')
+    m5_r_pct = models.DecimalField(max_digits=20, decimal_places=10, null=True, blank=True, help_text='5 minute return percentage')
+    m10_r_pct = models.DecimalField(max_digits=20, decimal_places=10, null=True, blank=True, help_text='10 minute return percentage')
+    m15_r_pct = models.DecimalField(max_digits=20, decimal_places=10, null=True, blank=True, help_text='15 minute return percentage')
+    m60_r_pct = models.DecimalField(max_digits=20, decimal_places=10, null=True, blank=True, help_text='60 minute return percentage')
 
     def __str__(self):
         return self.symbol

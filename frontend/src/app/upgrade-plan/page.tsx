@@ -81,8 +81,7 @@ function UpgradePlanContent() {
             } else {
                 setMessage(data.error || 'Upgrade failed. Please try again.');
             }
-        } catch (error) {
-            console.error('Upgrade failed:', error);
+        } catch (err) {
             setMessage('Network error. Please try again.');
         } finally {
             setLoading(false);
