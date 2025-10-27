@@ -11,7 +11,6 @@ I (GitHub Copilot) don't have access to your AWS account or the ability to run c
 4. **✅ `scripts/quick_deploy.sh`** - One-command complete deployment
 5. **✅ `AWS_DEPLOYMENT_GUIDE.md`** - Detailed step-by-step guide
 
----
 
 ## 🚀 Deploy in 3 Steps (5 minutes)
 
