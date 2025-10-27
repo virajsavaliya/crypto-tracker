@@ -233,7 +233,15 @@ class UserUpdateView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Return more detailed error messages
+        error_message = 'Failed to update profile.'
+        if serializer.errors:
+            # Extract the first error message for better UX
+            for field, errors in serializer.errors.items():
+                if errors:
+                    error_message = f"{field}: {errors[0]}"
+                    break
+        return Response({'error': error_message, 'details': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 class UpgradePlanView(APIView):
     permission_classes = [IsAuthenticated]

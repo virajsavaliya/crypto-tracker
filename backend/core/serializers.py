@@ -36,6 +36,27 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('first_name', 'last_name', 'email', 'mobile_number', 'username', 'subscription_plan', 'is_premium_user', 'plan_start_date', 'plan_end_date')
+        extra_kwargs = {
+            'email': {'read_only': True},
+        }
+    
+    def validate_mobile_number(self, value):
+        """
+        Check that the mobile number is unique, excluding the current user.
+        """
+        user = self.instance
+        if user and User.objects.filter(mobile_number=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("This mobile number is already in use by another user.")
+        return value
+    
+    def validate_username(self, value):
+        """
+        Check that the username is unique, excluding the current user.
+        """
+        user = self.instance
+        if user and User.objects.filter(username=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        return value
         
 class AlertSerializer(serializers.ModelSerializer):
     class Meta:
