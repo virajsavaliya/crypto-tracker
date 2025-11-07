@@ -1,25 +1,23 @@
-📋 Option 1: AWS Console (Manual - Most Control)
-Best if: You want full control and want to see what's being created
-Steps:
+Provider-specific deployment instructions removed.
 
-Create EC2 Instance:
+This file previously contained step-by-step instructions for deploying to AWS
+(EC2, ECR). That content has been removed to decouple the repository from a
+single cloud provider. If you'd like, I can add a Hetzner-specific checklist
+and bootstrap scripts under `deploy/`.
 
-Go to: https://console.aws.amazon.com/ec2/
-Click "Launch Instance"
-Name: crypto-tracker
-AMI: Ubuntu Server 22.04 LTS
-Instance type: t3.medium (2 vCPU, 4GB RAM)
-Key pair: Create or select existing
-Security group: Allow ports 22, 80, 443, 3000, 8080
-Click "Launch Instance"
-2. Wait 5 minutes for instance to be ready
+Quick note: to deploy on a plain Ubuntu server you generally need to:
 
-NOTICE: Provider-specific deployment instructions removed
+  1. Create a non-root user and add to the docker group
+     sudo useradd -m deploy && sudo usermod -aG docker deploy
 
-This file previously contained provider-specific commands for deploying to
-AWS (EC2, ECR). To remove hard links to third-party providers and avoid
-including account identifiers or credentials, that content was removed.
+  2. Install Docker & docker-compose, clone the repository, and place production
+     env files under `/home/deploy/crypto-tracker/backend/.env.production` and
+     `/home/deploy/crypto-tracker/frontend/.env.production`.
 
-If you want a deployment checklist for Hetzner (or another provider), I can
-create one and add it under `docs/` or `deploy/` on request.
-sudo usermod -aG docker ubuntu
+  3. Pull images from your registry (or build locally) and run:
+
+     docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
+     docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+If you want a fully automated Hetzner bootstrap (cloud-init + firewall + TLS),
+ask and I'll add `deploy/hetzner_bootstrap.sh` and a `DEPLOY_HETZNER.md` guide.

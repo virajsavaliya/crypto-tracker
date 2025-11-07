@@ -1,9 +1,8 @@
-# Notice: Provider-specific AWS deployment removed
+# Provider-agnostic deployment: AWS content removed
 
-This file previously contained step-by-step instructions for deploying to AWS
-and included provider-specific scripts and account information. To remove
-third-party provider ties from the repository, that content was removed.
+This repository previously included AWS-specific deployment instructions and
+automation. Those references have been removed so the codebase can be deployed
+to any provider (Hetzner, DigitalOcean, self-hosted servers, etc.).
 
-If you want a deployment guide for Hetzner (or another provider), I can add
-a tested, provider-specific guide and scripts on request.
-2. **✅ `scripts/aws_setup.sh`** - Automated AWS infrastructure setup
+If you want a tested Hetzner deployment guide and bootstrap script, reply
+and I'll add `deploy/hetzner_bootstrap.sh` and `DEPLOY_HETZNER.md`.
