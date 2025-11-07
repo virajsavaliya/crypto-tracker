@@ -5,59 +5,10 @@
 # Test: docker-compose up --build
 
 services:
-  # PostgreSQL Database - Optimized for 20 concurrent users
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: crypto_tracker
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    command: postgres -c max_connections=100 -c shared_buffers=256MB -c effective_cache_size=1GB -c maintenance_work_mem=64MB -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c default_statistics_target=100 -c work_mem=8MB
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.6'
-          memory: 896M
-        reservations:
-          cpus: '0.4'
-          memory: 512M
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # PgBouncer Connection Pooler
-  pgbouncer:
-    image: edoburu/pgbouncer:latest
-    platform: linux/amd64
-    volumes:
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
-    ports:
-      - "6432:5432"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.2'
-          memory: 128M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U postgres || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+  # NOTE: PostgreSQL runs externally on Hetzner server (46.62.216.158:5432)
+  # Using external PostgreSQL for better data security and persistence
+  # Database: crypto_tracker_db
+  # Managed via pgAdmin: http://46.62.216.158:5050
 
   # Redis for Caching and Celery - Optimized for faster updates
   redis:
@@ -89,10 +40,6 @@ services:
     env_file:
       - ./backend/.env
     depends_on:
-      postgres:
-        condition: service_healthy
-      pgbouncer:
-        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
@@ -135,10 +82,6 @@ services:
           cpus: '0.4'
           memory: 256M
     depends_on:
-      postgres:
-        condition: service_healthy
-      pgbouncer:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -163,10 +106,6 @@ services:
           cpus: '0.1'
           memory: 128M
     depends_on:
-      postgres:
-        condition: service_healthy
-      pgbouncer:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -183,8 +122,7 @@ services:
       bash -c "
         export PATH=/home/appuser/.local/bin:$$PATH &&
         export PYTHONPATH=/app &&
-        echo '⏳ Waiting for database services to be ready...' &&
-        /app/wait-for-services.sh pgbouncer 5432 60 &&
+        echo '⏳ Waiting for external database to be ready...' &&
         echo '🔄 Running database migrations...' &&
         python manage.py migrate --check || python manage.py migrate &&
         echo '✅ Migrations complete!' &&
@@ -204,10 +142,6 @@ services:
           cpus: '0.3'
           memory: 224M
     depends_on:
-      postgres:
-        condition: service_healthy
-      pgbouncer:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -232,10 +166,6 @@ services:
           cpus: '0.2'
           memory: 160M
     depends_on:
-      postgres:
-        condition: service_healthy
-      pgbouncer:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -304,5 +234,4 @@ services:
       start_period: 30s
 
 volumes:
-  postgres_data:
   redis_data:
