@@ -171,82 +171,15 @@ REGION=us-east-1 ACCOUNT=196790134201 TAG=latest ./scripts/ecr_build_push.sh
 After ECR repositories are created, you need:
 
 ### For ECR-Based Deployment:
-1. ✅ ECR repositories (this guide)
-2. ⏳ EC2 instance (admin must create, or get permissions)
-3. ⏳ Security group (admin must create, or get permissions)
-4. ⏳ SSH key pair (admin must create, or get permissions)
+# Notice: AWS/ECR content removed
 
-### Alternative: Direct Deployment (No ECR)
-If you get an EC2 instance, you can deploy **without ECR**:
-```bash
-./scripts/deploy_to_existing_instance.sh INSTANCE_ID
-```
-This builds images directly on the EC2 instance (slower but works without ECR).
+This guide previously contained AWS ECR-specific instructions (account IDs,
+example commands to create repositories and push images). To keep the repository
+provider-agnostic and avoid leaking provider-specific information, that content
+has been removed.
 
-
-## 🧪 Testing ECR Access
-
-Test if you can access ECR now:
-
-```bash
-# Try to list repositories
-aws ecr describe-repositories --region us-east-1
-
-# Try to get login token
-aws ecr get-login-password --region us-east-1
-```
-
-If these work, you have ECR access! ✅
-
----
-
-## 📊 ECR Repository Configuration
-
-### Recommended Settings:
-
-**Lifecycle Policy** (auto-cleanup old images):
-```json
-{
-  "rules": [
-    {
-      "rulePriority": 1,
-      "description": "Keep last 10 images",
-      "selection": {
-        "tagStatus": "any",
-        "countType": "imageCountMoreThan",
-        "countNumber": 10
-      },
-      "action": {
-        "type": "expire"
-      }
-    }
-  ]
-}
-```
-
-**Image Scanning:** Enabled (scans for vulnerabilities)
-
-**Encryption:** AES-256 (enabled by default)
-
----
-
-## 💰 ECR Costs
-
-**ECR Pricing:**
-- **Storage:** $0.10 per GB-month
-- **Data Transfer:** $0.09 per GB (out to internet)
-- **Free Tier:** 500 MB-month storage for 1 year
-
-**Typical Usage:**
-- 2 images × ~500 MB each = 1 GB
-- **Cost:** ~$0.10/month (very cheap!)
-
----
-
-## 🆘 Troubleshooting
-
-### Error: "no basic auth credentials"
-```bash
+If you need provider-specific deployment documentation (e.g., Hetzner, DigitalOcean,
+or AWS), ask and I will add a tailored guide for the selected provider.
 # Re-login to ECR
 aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin \

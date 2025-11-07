@@ -93,55 +93,15 @@ INSTANCE_IP=$(aws ec2 describe-instances \
   --query 'Reservations[0].Instances[0].PublicIpAddress' \
   --output text)
 
-# SSH to instance
-ssh -i ~/.ssh/crypto-tracker-key.pem ubuntu@$INSTANCE_IP
-```
+# Notice: AWS-specific post-deployment instructions removed
 
-### Step 3.2: Install Docker (if not installed)
+This document previously contained detailed post-deployment steps tailored to
+an AWS/ECR-based deployment (EC2 provisioning, ECR login, example account IDs).
+To keep the repository provider-agnostic and avoid including provider-specific
+commands or account identifiers, that content has been removed.
 
-```bash
-# On the EC2 instance
-sudo apt-get update
-sudo apt-get install -y docker.io docker-compose
-sudo usermod -aG docker ubuntu
-sudo systemctl enable docker
-sudo systemctl start docker
-
-# Re-login for group changes to take effect
-exit
-ssh -i ~/.ssh/crypto-tracker-key.pem ubuntu@$INSTANCE_IP
-```
-
-### Step 3.3: Set Up Project
-
-```bash
-# On the EC2 instance
-mkdir -p ~/crypto-tracker
-cd ~/crypto-tracker
-
-# Copy your code (run this from your local machine)
-scp -i ~/.ssh/crypto-tracker-key.pem -r \
-  /Users/virajsavaliya/Desktop/project/Archive\ 2/* \
-  ubuntu@$INSTANCE_IP:~/crypto-tracker/
-```
-
-### Step 3.4: Login to ECR
-
-```bash
-# On the EC2 instance
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin \
-  196790134201.dkr.ecr.us-east-1.amazonaws.com
-```
-
-### Step 3.5: Deploy with Docker Compose
-
-```bash
-# On the EC2 instance
-cd ~/crypto-tracker
-export TAG=latest
-
-# Pull images from ECR
+If you need post-deployment instructions for Hetzner (or another provider),
+tell me which provider you prefer and I will add a clean, tested guide for it.
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
 
 # Start all services

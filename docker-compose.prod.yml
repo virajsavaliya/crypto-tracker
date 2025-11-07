@@ -15,27 +15,48 @@ services:
     env_file:
       - ./backend/.env.production
 
-  celery-beat:
-    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
-    command: celery -A project_config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    env_file:
-      - ./backend/.env.production
+  ```dockercompose
+  # docker-compose.prod.yml (override)
+  # Production override — use pre-built images (registry-agnostic).
+  # Set TAG in your shell: export TAG=$(git rev-parse --short HEAD) or a version string.
 
-  data-worker:
-    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
-    env_file:
-      - ./backend/.env.production
+  services:
+    backend1:
+      # Use registry-agnostic image names so CI/CD or the deployer can set the registry.
+      image: crypto-tracker/backend:${TAG}
+      env_file:
+        - ./backend/.env.production
+      # keep volumes/depends_on/healthcheck from base file
 
-  calc-worker:
-    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend:${TAG}
-    env_file:
-      - ./backend/.env.production
+    celery-worker:
+      image: crypto-tracker/backend:${TAG}
+      command: celery -A project_config worker --loglevel=info --concurrency=2 --prefetch-multiplier=1 --max-memory-per-child=150000 --max-tasks-per-child=100
+      env_file:
+        - ./backend/.env.production
 
-  frontend:
-    image: 196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/frontend:${TAG}
-    env_file:
-      - ./frontend/.env.production
-    # Remove public port exposure; Nginx will front it.
-    ports: []
+    celery-beat:
+      image: crypto-tracker/backend:${TAG}
+      command: celery -A project_config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      env_file:
+        - ./backend/.env.production
 
-# nginx, postgres, pgbouncer, redis inherit from base compose
+    data-worker:
+      image: crypto-tracker/backend:${TAG}
+      env_file:
+        - ./backend/.env.production
+
+    calc-worker:
+      image: crypto-tracker/backend:${TAG}
+      env_file:
+        - ./backend/.env.production
+
+    frontend:
+      image: crypto-tracker/frontend:${TAG}
+      env_file:
+        - ./frontend/.env.production
+      # Remove public port exposure; Nginx will front it.
+      ports: []
+
+  # nginx, postgres, pgbouncer, redis inherit from base compose
+
+  ```

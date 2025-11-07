@@ -4,30 +4,14 @@ A real-time cryptocurrency trading dashboard with live price updates, alerts, an
 
 ---
 
-## ⚡ Quick AWS Deployment
+## 🚀 Deployment
 
-**Want to deploy to AWS? Start here!**
+This repository no longer contains provider-specific deployment automation.
+We removed AWS/ECR-specific scripts and docs to keep the repository provider-agnostic.
 
-📖 **[START_HERE_DEPLOY.md](START_HERE_DEPLOY.md)** - Complete deployment guide in 3 simple steps
+For deployment instructions and provider-specific notes, see `./docs/DEPLOYMENT_GUIDE.md`.
 
-```bash
-# 1. Install AWS CLI and configure
-brew install awscli && aws configure
-
-# 2. Update production settings
-nano backend/.env.production
-
-# 3. Deploy to AWS EC2 (one command!)
-./scripts/quick_deploy.sh
-```
-
-**Deployment Resources:**
-- 📋 [Quick Reference Card](DEPLOYMENT_QUICK_REFERENCE.txt) - All commands in one place
-- 📖 [Detailed AWS Guide](AWS_DEPLOYMENT_GUIDE.md) - Complete documentation
-- 🔧 `./scripts/check_ready.sh` - Pre-deployment checker
-- 🚀 `./scripts/quick_deploy.sh` - Automated deployment
-
-**Cost:** ~$40/month for production-ready setup
+If you want a ready-made script for a provider (Hetzner, DigitalOcean, etc.), I can add one tailored to your target—tell me which provider you prefer.
 
 ---
 

@@ -77,124 +77,15 @@ if [[ "$BACKEND_EXISTS" == "false" ]] || [[ "$FRONTEND_EXISTS" == "false" ]]; th
         ./scripts/create_ecr_repos.sh
     else
         echo -e "${RED}❌ Cannot create repositories automatically${NC}"
-        echo "Please create them manually or run: ./scripts/create_ecr_repos.sh"
-        exit 1
-    fi
-fi
+        #!/usr/bin/env bash
+        set -euo pipefail
 
-# Step 3: Login to ECR
-echo -e "\n${YELLOW}[Step 3/7] Logging in to ECR...${NC}"
-if aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com" &>/dev/null; then
-    echo -e "${GREEN}✅ Successfully logged in to ECR${NC}"
-else
-    echo -e "${RED}❌ Failed to login to ECR${NC}"
+        # This script was intentionally neutralized.
+        # AWS/ECR-specific deployment automation has been removed from the repository.
+        # Manage image registries and provider-specific pushes outside this repo or
+        # via a private deployment repository.
+
+        echo "NOTICE: ECR deployment script disabled."
+        echo "Provider-specific automation removed. Use a provider-specific script or CI job."
+        exit 0
     exit 1
-fi
-
-# Step 4: Build Backend Image
-echo -e "\n${YELLOW}[Step 4/7] Building backend Docker image...${NC}"
-echo -e "${CYAN}📦 Building from: ${PROJECT_ROOT}/backend${NC}"
-
-if docker build -t "${PROJECT_NAME}-backend:${TAG}" ./backend; then
-    echo -e "${GREEN}✅ Backend image built successfully${NC}"
-else
-    echo -e "${RED}❌ Failed to build backend image${NC}"
-    exit 1
-fi
-
-# Step 5: Build Frontend Image
-echo -e "\n${YELLOW}[Step 5/7] Building frontend Docker image...${NC}"
-echo -e "${CYAN}📦 Building from: ${PROJECT_ROOT}/frontend${NC}"
-
-if docker build -t "${PROJECT_NAME}-frontend:${TAG}" ./frontend; then
-    echo -e "${GREEN}✅ Frontend image built successfully${NC}"
-else
-    echo -e "${RED}❌ Failed to build frontend image${NC}"
-    exit 1
-fi
-
-# Step 6: Tag and Push Backend
-echo -e "\n${YELLOW}[Step 6/7] Tagging and pushing backend image...${NC}"
-docker tag "${PROJECT_NAME}-backend:${TAG}" "${BACKEND_REPO}:${TAG}"
-echo -e "${CYAN}🏷️  Tagged: ${BACKEND_REPO}:${TAG}${NC}"
-
-echo -e "${CYAN}⬆️  Pushing to ECR (this may take a few minutes)...${NC}"
-if docker push "${BACKEND_REPO}:${TAG}"; then
-    echo -e "${GREEN}✅ Backend image pushed successfully${NC}"
-else
-    echo -e "${RED}❌ Failed to push backend image${NC}"
-    exit 1
-fi
-
-# Also tag as 'latest' if TAG is a version
-if [[ "$TAG" != "latest" ]]; then
-    docker tag "${PROJECT_NAME}-backend:${TAG}" "${BACKEND_REPO}:latest"
-    docker push "${BACKEND_REPO}:latest"
-    echo -e "${GREEN}✅ Also tagged and pushed as 'latest'${NC}"
-fi
-
-# Step 7: Tag and Push Frontend
-echo -e "\n${YELLOW}[Step 7/7] Tagging and pushing frontend image...${NC}"
-docker tag "${PROJECT_NAME}-frontend:${TAG}" "${FRONTEND_REPO}:${TAG}"
-echo -e "${CYAN}🏷️  Tagged: ${FRONTEND_REPO}:${TAG}${NC}"
-
-echo -e "${CYAN}⬆️  Pushing to ECR (this may take a few minutes)...${NC}"
-if docker push "${FRONTEND_REPO}:${TAG}"; then
-    echo -e "${GREEN}✅ Frontend image pushed successfully${NC}"
-else
-    echo -e "${RED}❌ Failed to push frontend image${NC}"
-    exit 1
-fi
-
-# Also tag as 'latest' if TAG is a version
-if [[ "$TAG" != "latest" ]]; then
-    docker tag "${PROJECT_NAME}-frontend:${TAG}" "${FRONTEND_REPO}:latest"
-    docker push "${FRONTEND_REPO}:latest"
-    echo -e "${GREEN}✅ Also tagged and pushed as 'latest'${NC}"
-fi
-
-# Summary
-echo ""
-echo -e "${BLUE}╔════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║       Deployment Complete! 🎉                 ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════╝${NC}"
-echo ""
-echo -e "${GREEN}✅ Images successfully pushed to ECR:${NC}"
-echo ""
-echo -e "${CYAN}Backend:${NC}"
-echo -e "  ${BACKEND_REPO}:${TAG}"
-if [[ "$TAG" != "latest" ]]; then
-    echo -e "  ${BACKEND_REPO}:latest"
-fi
-echo ""
-echo -e "${CYAN}Frontend:${NC}"
-echo -e "  ${FRONTEND_REPO}:${TAG}"
-if [[ "$TAG" != "latest" ]]; then
-    echo -e "  ${FRONTEND_REPO}:latest"
-fi
-echo ""
-
-# Verify images in ECR
-echo -e "${YELLOW}📊 Verifying images in ECR...${NC}"
-echo ""
-echo -e "${CYAN}Backend images:${NC}"
-aws ecr list-images --repository-name "${PROJECT_NAME}/backend" --region "$REGION" --output table
-
-echo ""
-echo -e "${CYAN}Frontend images:${NC}"
-aws ecr list-images --repository-name "${PROJECT_NAME}/frontend" --region "$REGION" --output table
-
-echo ""
-echo -e "${GREEN}🎯 Next Steps:${NC}"
-echo ""
-echo "1. Update docker-compose.prod.yml with:"
-echo "   export TAG=${TAG}"
-echo ""
-echo "2. Deploy to EC2:"
-echo "   ./scripts/deploy_to_ec2.sh"
-echo ""
-echo "3. Or use docker-compose on your server:"
-echo "   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
-echo ""
-echo -e "${YELLOW}💡 Tip: Set a custom tag with: TAG=v1.0.0 ./scripts/ecr_deploy.sh${NC}"
-echo ""

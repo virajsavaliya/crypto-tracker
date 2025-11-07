@@ -1,0 +1,25 @@
+📋 Option 1: AWS Console (Manual - Most Control)
+Best if: You want full control and want to see what's being created
+Steps:
+
+Create EC2 Instance:
+
+Go to: https://console.aws.amazon.com/ec2/
+Click "Launch Instance"
+Name: crypto-tracker
+AMI: Ubuntu Server 22.04 LTS
+Instance type: t3.medium (2 vCPU, 4GB RAM)
+Key pair: Create or select existing
+Security group: Allow ports 22, 80, 443, 3000, 8080
+Click "Launch Instance"
+2. Wait 5 minutes for instance to be ready
+
+NOTICE: Provider-specific deployment instructions removed
+
+This file previously contained provider-specific commands for deploying to
+AWS (EC2, ECR). To remove hard links to third-party providers and avoid
+including account identifiers or credentials, that content was removed.
+
+If you want a deployment checklist for Hetzner (or another provider), I can
+create one and add it under `docs/` or `deploy/` on request.
+sudo usermod -aG docker ubuntu

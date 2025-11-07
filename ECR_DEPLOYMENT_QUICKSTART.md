@@ -37,9 +37,6 @@ cd /Users/virajsavaliya/Desktop/project/Archive\ 2
 
 **Or manually via AWS Console:**
 1. Go to: https://us-east-1.console.aws.amazon.com/ecr/repositories
-2. Click "Create repository"
-3. Create:
-   - `crypto-tracker/backend`
    - `crypto-tracker/frontend`
 4. Enable "Scan on push" for both
 
@@ -86,16 +83,7 @@ aws ecr list-images \
   --repository-name crypto-tracker/backend \
   --region us-east-1
 
-# Frontend images
-aws ecr list-images \
-  --repository-name crypto-tracker/frontend \
-  --region us-east-1
-```
-
-### Get image details
-```bash
 aws ecr describe-images \
-  --repository-name crypto-tracker/backend \
   --region us-east-1
 ```
 
@@ -123,7 +111,6 @@ docker push \
 ```bash
 # Build
 docker build -t crypto-tracker-frontend:latest ./frontend
-
 # Tag
 docker tag crypto-tracker-frontend:latest \
   196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/frontend:latest
@@ -157,7 +144,6 @@ aws ecr describe-images \
 
 ---
 
-## 🚀 Deploy to EC2 (After ECR Push)
 
 Once images are in ECR, deploy to EC2:
 
@@ -171,7 +157,6 @@ export TAG=latest
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
-
 ---
 
 ## 🐛 Troubleshooting
@@ -188,7 +173,6 @@ aws sso login
 **Solution:** Create the ECR repositories first
 ```bash
 ./scripts/create_ecr_repos.sh
-```
 
 ### Error: "no basic auth credentials"
 **Solution:** Re-login to ECR
@@ -212,7 +196,6 @@ aws ecr get-login-password --region us-east-1 | \
 ```bash
 docker system prune -a --volumes
 ```
-
 ---
 
 ## 💰 ECR Costs
@@ -220,15 +203,10 @@ docker system prune -a --volumes
 - Storage: $0.10 per GB/month
 - Transfer: $0.09 per GB out to internet
 - Typical usage: ~$0.10-0.20/month for 2 images
-
 ---
 
 ## 🗑️ Cleanup (Delete Images)
-
-### Delete specific images
-```bash
 # Get image digest
-IMAGE_DIGEST=$(aws ecr list-images \
   --repository-name crypto-tracker/backend \
   --query 'imageIds[?imageTag==`latest`].imageDigest' \
   --output text \
@@ -243,16 +221,12 @@ aws ecr batch-delete-image \
 
 ### Delete entire repositories
 ```bash
-# WARNING: This deletes everything!
 aws ecr delete-repository \
   --repository-name crypto-tracker/backend \
   --force \
   --region us-east-1
 
-aws ecr delete-repository \
-  --repository-name crypto-tracker/frontend \
   --force \
-  --region us-east-1
 ```
 
 ---
@@ -262,7 +236,6 @@ aws ecr delete-repository \
 Once created, your repositories will be:
 
 - **Backend**: `196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/backend`
-- **Frontend**: `196790134201.dkr.ecr.us-east-1.amazonaws.com/crypto-tracker/frontend`
 
 ---
 
@@ -271,7 +244,6 @@ Once created, your repositories will be:
 1. **Enable Image Scanning**: Scans for vulnerabilities (already enabled in script)
 2. **Use IAM Roles**: For EC2 instances pulling images
 3. **Lifecycle Policies**: Auto-delete old images to save costs
-4. **Encryption**: AES-256 encryption enabled by default
 5. **Private Repositories**: Keep repositories private (not public)
 
 ---
@@ -282,7 +254,6 @@ Once created, your repositories will be:
 2. Review ECR setup guide: `ECR_SETUP_GUIDE.md`
 3. Review deployment guide: `START_HERE_DEPLOY.md`
 4. Check AWS documentation: https://docs.aws.amazon.com/ecr/
-
 ---
 
 ## ✨ Next Steps After ECR Deployment
