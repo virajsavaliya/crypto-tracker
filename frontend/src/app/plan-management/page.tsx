@@ -7,10 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { TrendingUp, CheckCircle } from 'lucide-react';
+import { Loader2, CheckCircle, TrendingUp } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInactivityLogout } from '@/lib/useInactivityLogout';
+import { getUser, logout, authenticatedFetch } from '@/lib/auth';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 
 const { Calendar, Clock, XCircle, ArrowRight, Crown, Zap, Shield, Sparkles } = LucideIcons as any;
 
@@ -91,12 +93,6 @@ export default function PlanManagementPage() {
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [progressPercentage, setProgressPercentage] = useState(0);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('is_premium_user');
-    router.push('/');
-  }, [router]);
-
   const calculateDaysRemaining = useCallback((endDate: string) => {
     const now = new Date();
     const end = new Date(endDate);
@@ -118,19 +114,20 @@ export default function PlanManagementPage() {
   }, []);
 
   const fetchUserDetails = useCallback(async () => {
-    const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-    
-    if (!localUser.access_token) {
-      handleLogout();
+    // Check authentication using centralized auth utility
+    const authUser = getUser();
+    if (!authUser) {
+      logout();
       return;
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`, {
-        headers: {
-          'Authorization': `Bearer ${localUser.access_token}`,
-        },
-      });
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`);
+
+      if (!response) {
+        // authenticatedFetch handles logout on auth errors
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch user details');
@@ -151,11 +148,11 @@ export default function PlanManagementPage() {
       }
     } catch (err) {
       console.error('Error fetching user details:', err);
-      handleLogout();
+      logout();
     } finally {
       setLoading(false);
     }
-  }, [handleLogout, calculateDaysRemaining, calculateProgress]);
+  }, [calculateDaysRemaining, calculateProgress]);
 
   useEffect(() => {
     fetchUserDetails();
@@ -195,25 +192,18 @@ export default function PlanManagementPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <Header />
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading your plan details...</p>
-            </div>
-          </div>
-        </div>
+        <Header />
+        <LoadingSpinner message="Loading plan details..." />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <Header />
+      <Header />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
 
-        <div className="mb-8">
+        <div className="mb-6 lg:mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Plan Management</h1>
           <p className="text-gray-600">Manage your subscription and view plan details</p>
         </div>
@@ -458,13 +448,13 @@ export default function PlanManagementPage() {
         </div>
 
         {/* Help Section */}
-        <Card className="border-blue-200 bg-blue-50/50">
+        {/* <Card className="border-blue-200 bg-blue-50/50">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
               <div className="p-3 bg-blue-100 rounded-lg">
                 <Shield className="h-6 w-6 text-blue-600" />
               </div>
-              {/* <div className="flex-1">
+              <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
                 <p className="text-sm text-gray-600 mb-4">
                   Have questions about your plan or need assistance? Our support team is here to help.
@@ -477,10 +467,10 @@ export default function PlanManagementPage() {
                     View FAQ
                   </Button>
                 </div>
-              </div> */}
+              </div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );

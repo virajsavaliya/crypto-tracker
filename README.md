@@ -1,428 +1,369 @@
-# 🚀 Crypto Trading Dashboard
+# ⚡ VoluSignal — Real-Time Crypto Trading Intelligence & Volume Tracker
 
-A real-time cryptocurrency trading dashboard with live price updates, alerts, and comprehensive analytics for 2000+ USDT trading pairs.
+<div align="center">
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js%2015-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Django](https://img.shields.io/badge/Django%204.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![WebSockets](https://img.shields.io/badge/Channels-ASGI%20WebSockets-02569B?style=for-the-badge)](https://channels.readthedocs.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
-## 🚀 Deployment
+**High-Frequency Crypto Volume Scanner, Real-Time Market Analytics & Automated Telegram Signals**
 
-This repository no longer contains provider-specific deployment automation.
-We removed AWS/ECR-specific scripts and docs to keep the repository provider-agnostic.
+[🌐 Production Website](https://volusignal.com) • [📖 System Architecture](#-system-architecture) • [🚀 Quick Start](#-quick-start) • [📡 API Reference](#-api--websocket-reference) • [📄 License](#-license)
 
-For deployment instructions and provider-specific notes, see `./docs/DEPLOYMENT_GUIDE.md`.
-
-If you want a ready-made script for a provider (Hetzner, DigitalOcean, etc.), I can add one tailored to your target—tell me which provider you prefer.
-
----
-
-## 📋 Features
-
-### Core Features
-- **Real-Time Data**: Live cryptocurrency prices via Binance WebSocket
-- **2000+ Trading Pairs**: All USDT pairs with real-time updates
-- **Advanced Metrics**: RSI, price changes (1m, 2m, 3m, 5m, 10m, 15m, 60m), volume analysis
-- **Smart Alerts**: Price, volume, RSI, pump/dump detection with Email & Telegram notifications
-- **Telegram Integration**: Real-time notifications via Telegram bot
-- **Multi-Exchange Links**: Quick access to Binance, Bybit, MEXC, KuCoin, TradingView
-- **Plan Management**: Free, Basic ($9.99), and Enterprise ($29.99) subscription tiers
-- **Auto Logout**: 30-minute inactivity timeout for security
-- **Plan Expiration**: Automatic notifications at 7, 3, and 1 days before expiry
-
-### Alert Types
-1. **Price Movement**: Track percentage changes over time
-2. **Volume Change**: Monitor trading volume spikes
-3. **New Coin Listing**: Get notified of new trading pairs
-4. **RSI Overbought** (>70): Identify potentially oversold coins
-5. **RSI Oversold** (<30): Find potentially undervalued coins
-6. **Pump Alert**: Detect rapid price increases (>5% in 1m)
-7. **Dump Alert**: Detect rapid price drops (<-5% in 1m)
-
-### Subscription Tiers
-- **Free**: Limited access, basic features
-- **Basic ($9.99/month)**: Up to 10 alerts, email notifications, Telegram integration, RSI indicators
-- **Enterprise ($29.99/month)**: Unlimited alerts, advanced indicators, custom conditions, priority support
+</div>
 
 ---
 
-### Frontend
-- **Framework**: Next.js 15.5.2 (React 19.1.0)
-- **Language**: TypeScript 5
-- **Styling**: Tailwind CSS 4
-- **UI Components**: Radix UI, Lucide Icons
-- **State Management**: React Query
-- **Real-time**: WebSocket connections
-- **Authentication**: Firebase Auth
+## 📸 Application Showcase
 
-### Backend
-- **Framework**: Django 5.2.6
-- **Language**: Python 3.12
-- **API**: Django REST Framework 3.16.1
-- **WebSocket**: Django Channels 4.3.1
-- **Task Queue**: Celery 5.3.4
-- **Database**: PostgreSQL 15
-- **Cache**: Redis 7
-- **Connection Pool**: PgBouncer
+### 📊 Real-Time Volume & Market Dashboard
+Full-spectrum market overview tracking live USDT trading pairs directly from Binance with sub-100ms latency, multi-timeframe volume percentage surges (1m, 2m, 3m, 5m, 10m, 15m, 60m), and live order flow spreads.
 
-### Infrastructure
-- **Containerization**: Docker + Docker Compose
-- **Load Balancer**: Nginx
-- **Data Source**: Binance WebSocket API
-- **Payments**: Stripe
-- **Notifications**: Telegram Bot API
+![VoluSignal Real-Time Dashboard](docs/screenshots/dashboard.png)
 
-## 📦 Project Structure
+---
+
+### 🚨 Multi-Channel Alert Engine
+Create customizable trigger rules based on sudden price breakouts, multi-minute volume surges, RSI divergence, or custom threshold percentages with instant automated notification dispatches.
+
+![VoluSignal Alert Engine](docs/screenshots/alerts.png)
+
+---
+
+### 🤖 Telegram Bot Integration & Instant Alerts
+Zero-latency automated Telegram bot signals delivering formatted alert cards with direct chart links, real-time volume multipliers, and instant market alerts.
+
+![VoluSignal Telegram Integration](docs/screenshots/telegram-setup.png)
+
+---
+
+### 💳 Tiered Subscription & Plan Management
+Production-ready plan tier management (Basic, Enterprise) integrated with Stripe billing and real-time permission enforcement across WebSocket streams.
+
+![VoluSignal Pricing Plans](docs/screenshots/pricing.png)
+
+---
+
+### 🔐 Modern Authentication & User Access Portal
+Clean authentication flow featuring JWT authentication, automated inactivity auto-logout protection, Google SSO support, and session continuity.
+
+![VoluSignal Landing Page](docs/screenshots/landing-page.png)
+
+---
+
+## ✨ Key Features
+
+- **⚡ Sub-100ms Real-Time Streaming**: High-throughput Daphne ASGI WebSocket server streaming Binance price updates, volume velocity, and bid/ask spreads directly to the Next.js frontend.
+- **📈 Multi-Timeframe Volume Profiling**: Real-time volume breakout metrics across `1m`, `2m`, `3m`, `5m`, `10m`, `15m`, and `60m` candles to detect whale activity and institutional momentum early.
+- **🎯 Dynamic Technical Indicators**: Automatic calculation of Relative Strength Index (RSI 1m/3m/5m/15m), net volume flow, buy/sell volume imbalance, and 24h percentage swings.
+- **🤖 Autonomous Telegram Bot Alerting**: Background task workers continuously evaluate market conditions against user rules and dispatch real-time rich alerts to paired Telegram accounts.
+- **🛡️ Enterprise-Grade Architecture**: High-capacity PostgreSQL with PgBouncer connection pooling (scaling 100 DB connections to 2,000+ client requests) and Redis caching layers.
+- **🩺 Self-Healing Automation**: Integrated operational supervisor monitoring disk space, Celery queue health, WebSocket reconnects, and auto-restarting degraded containers.
+- **🔒 Robust Security**: Strict JWT token rotation, CORS origin isolation, SQL injection prevention via Django ORM, rate-limiting on sensitive endpoints, and security headers.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Client["Frontend Client (Next.js 15)"]
+        UI["React Dashboard UI"]
+        WSClient["WebSocket Client (Auto-Reconnect)"]
+        AuthCtx["JWT Session & Auth State"]
+    end
+
+    subgraph Gateway["Reverse Proxy & Gateway"]
+        Nginx["Nginx Reverse Proxy / SSL"]
+    end
+
+    subgraph Backend["Application Tier (Django + Daphne)"]
+        Daphne["Daphne ASGI Server (Port 8000)"]
+        WS_Consumer["Crypto WebSocket Consumer"]
+        REST_API["Django REST Framework API"]
+        TelegramView["Telegram Webhook / Integration"]
+    end
+
+    subgraph Realtime["Message Broker & Task Queue"]
+        RedisPubSub["Redis Channel Layer & Streams"]
+        CeleryWorker["Celery Distributed Workers"]
+        CeleryBeat["Celery Beat Task Scheduler"]
+    end
+
+    subgraph Storage["Persistent Storage Tier"]
+        PgBouncer["PgBouncer Connection Pooler"]
+        Postgres[("PostgreSQL Database")]
+    end
+
+    subgraph External["External Integrations"]
+        BinanceWS["Binance Live Market Stream"]
+        TelegramAPI["Telegram Bot API (@volusignal_alerts_v2_bot)"]
+        StripeAPI["Stripe Payment Gateway"]
+    end
+
+    UI --> Nginx
+    WSClient <-->|WSS| Nginx
+    Nginx -->|HTTP REST| REST_API
+    Nginx <-->|WebSockets| Daphne
+    Daphne --> WS_Consumer
+
+    WS_Consumer <--> RedisPubSub
+    REST_API --> PgBouncer
+    PgBouncer --> Postgres
+
+    CeleryBeat -->|Periodic Tasks| CeleryWorker
+    CeleryWorker <--> RedisPubSub
+    CeleryWorker --> Postgres
+
+    BinanceWS -->|Real-time Tickers| CeleryWorker
+    CeleryWorker -->|Price/Volume Alerts| TelegramAPI
+    REST_API --> TelegramView
+    REST_API <--> StripeAPI
+```
+
+---
+
+## 💻 Tech Stack
+
+| Domain | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend** | [Next.js 15](https://nextjs.org/) (App Router) | High-performance React 19 framework with SSR and streaming |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) & [Radix UI](https://www.radix-ui.com/) | Custom dark/light mode UI components with Lucide icons |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) | Strict type checking across API responses and state |
+| **Backend API** | [Django 4.2](https://www.djangoproject.com/) + [DRF](https://www.django-rest-framework.org/) | RESTful API endpoints for auth, alerts, and settings |
+| **ASGI / Realtime** | [Django Channels 4](https://channels.readthedocs.io/) + [Daphne](https://github.com/django/daphne) | Asynchronous WebSocket server handling bi-directional data |
+| **Task Queue** | [Celery 5](https://docs.celeryq.dev/) + [django-celery-beat](https://github.com/celery/django-celery-beat) | Distributed background workers and periodic schedulers |
+| **In-Memory Cache** | [Redis 7](https://redis.io/) | Channel layer backend, Celery broker, and high-speed cache |
+| **Database** | [PostgreSQL 15](https://www.postgresql.org/) | Relational database for accounts, subscriptions, and metrics |
+| **Connection Pool**| [PgBouncer](https://www.pgbouncer.org/) | Lightweight connection pooler ensuring low database load |
+| **Data Provider** | [Binance API & WebSockets](https://binance-docs.github.io/apidocs/) | Ingestion of 2,000+ crypto pairs and live tick streams |
+| **Containerization**| [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/) | Turnkey container orchestration for local dev & production |
+
+---
+
+## 📁 Repository Structure
 
 ```
-.
-├── frontend/               # Next.js frontend application
+crypto-tracker/
+├── backend/                        # Django REST API + WebSocket Server
+│   ├── core/                       # Core application domain
+│   │   ├── binance_realtime.py     # Binance live market stream client
+│   │   ├── consumers.py            # WebSocket Channel consumers
+│   │   ├── models.py               # CryptoData, User, and Alert models
+│   │   ├── tasks.py                # Celery background calculation tasks
+│   │   ├── telegram_bot.py         # Telegram bot handler & dispatcher
+│   │   ├── telegram_views.py       # Telegram pairing & test endpoints
+│   │   ├── views.py                # REST API views & authentication
+│   │   └── management/commands/    # CLI tools (populate_usdt_only, etc.)
+│   ├── project_config/             # Django settings, ASGI/WSGI, Celery config
+│   ├── Dockerfile                  # Multi-stage optimized Python container
+│   ├── requirements.txt            # Python dependencies
+│   └── start.sh                    # Container startup entrypoint
+│
+├── frontend/                       # Next.js 15 Client Application
 │   ├── src/
-│   │   ├── app/           # App router pages
-│   │   ├── components/    # Reusable React components
-│   │   ├── lib/           # Utilities and helpers
-│   │   └── styles/        # Global styles
-│   ├── public/            # Static assets
-│   └── package.json
+│   │   ├── app/                    # Next.js App Router pages
+│   │   │   ├── page.tsx            # Landing & authentication page
+│   │   │   ├── dashboard/page.tsx  # Live crypto market dashboard
+│   │   │   ├── alerts/page.tsx     # Alert creation & Telegram setup
+│   │   │   └── upgrade-plan/       # Subscription plans & checkout
+│   │   ├── components/             # Reusable UI & domain components
+│   │   └── lib/                    # Authentication, API, and config utilities
+│   ├── Dockerfile.dev              # Development container with hot-reload
+│   └── package.json                # Frontend packages & scripts
 │
-├── backend/               # Django backend application
-│   ├── core/             # Main app
-│   │   ├── models.py     # Database models
-│   │   ├── views.py      # API endpoints
-│   │   ├── tasks.py      # Celery background tasks
-│   │   ├── consumers.py  # WebSocket consumers
-│   │   └── management/   # Custom commands
-│   ├── project_config/   # Django settings
-│   ├── requirements.txt  # Python dependencies
-│   └── Dockerfile
+├── docs/                           # Architecture, guides, and assets
+│   ├── DOCUMENTATION.md            # Detailed technical specification
+│   ├── README.md                   # Operator manual
+│   └── screenshots/                # Application UI screenshots
+│       ├── dashboard.png           # Live market dashboard preview
+│       ├── alerts.png              # Alert management preview
+│       ├── telegram-setup.png      # Telegram bot connection preview
+│       ├── pricing.png             # Pricing & plans preview
+│       └── landing-page.png        # Authentication portal preview
 │
-├── nginx/                # Nginx configuration
-├── pgbouncer/            # Connection pooler config
-├── db/                   # Database initialization
-├── docs/                 # Documentation
-│   ├── README.md         # This file
-│   └── DEPLOYMENT_GUIDE.md
-├── docker-compose.yml    # Multi-container setup
-└── package.json          # Root package info
+├── nginx/                          # Nginx reverse proxy configurations
+├── pgbouncer/                      # PgBouncer connection pooler configs
+├── scripts/                        # Automated maintenance & deployment scripts
+│   ├── auto-repair.sh              # Self-healing operational supervisor
+│   └── setup-automation.sh         # Cron monitoring installation
+├── docker-compose.local.yml        # Local development full-stack compose
+├── docker-compose.yml              # Production stack compose configuration
+├── LICENSE                         # MIT Open Source License
+└── README.md                       # Main project documentation
 ```
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+ (for local development)
-- Python 3.12+ (for local development)
+- [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/) (v2.20+)
+- Git
 
-### Environment Setup
-
-1. **Clone the repository**
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-repo/crypto-trading-dashboard.git
-cd crypto-trading-dashboard
+git clone https://github.com/virajsavaliya/crypto-tracker.git
+cd crypto-tracker
 ```
 
-2. **Set up environment variables**
-
-Backend (.env):
+### 2. Environment Configuration
+Copy the provided environment template:
 ```bash
-cd backend
-cp .env.example .env
-# Edit .env with your configuration
+cp .env.example backend/.env
 ```
 
-Frontend (.env.local):
+Key environment configuration variables:
 ```bash
-cd frontend
-cp .env.example .env.local
-# Edit .env.local with your configuration
-```
-
-3. **Start with Docker Compose**
-```bash
-docker-compose up --build
-```
-
-Services will be available at:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8080
-- **Admin Panel**: http://localhost:8080/admin/
-
----
-
-## 🔧 Configuration
-
-### Key Environment Variables
-
-**Backend (.env):**
-```env
-DATABASE_URL=postgresql://user:pass@postgres:5432/crypto_db
+# Backend Settings
+DEBUG=True
+SECRET_KEY=your-django-secret-key
+DB_HOST=db
+DB_PORT=5432
+DB_NAME=crypto_tracker_db
+DB_USER=postgres
+DB_PASSWORD=postgres
 REDIS_URL=redis://redis:6379/0
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-STRIPE_SECRET_KEY=your_stripe_secret_key
-EMAIL_HOST=smtp.gmail.com
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
+CELERY_BROKER_URL=redis://redis:6379/1
+
+# Telegram Alerts Integration
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+TELEGRAM_BOT_USERNAME=your_bot_username
 ```
 
-**Frontend (.env.local):**
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8080
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_public_key
+### 3. Launch with Docker Compose
+Start the complete stack (PostgreSQL, Redis, Django Backend, Celery Worker, Celery Beat, and Next.js Frontend) in one command:
+
+```bash
+docker-compose -f docker-compose.local.yml up -d --build
 ```
+
+Verify service status:
+```bash
+docker-compose -f docker-compose.local.yml ps
+```
+
+### 4. Populate Live USDT Pairs
+Run the optimized data ingest command to fetch live Binance crypto pairs and calculate initial metrics:
+```bash
+docker exec crypto_backend python manage.py populate_usdt_only
+```
+
+### 5. Access the Platform
+- **Frontend Dashboard**: [http://localhost:3000](http://localhost:3000)
+- **Backend REST API**: [http://localhost:8000/api/](http://localhost:8000/api/)
+- **Health Check**: [http://localhost:8000/healthz/](http://localhost:8000/healthz/)
 
 ---
 
-## 📊 Architecture
+## 📡 API & WebSocket Reference
 
-### System Overview
-
+### 🔌 WebSocket Real-Time Stream
+Connect to the Daphne ASGI WebSocket server:
 ```
-### System Overview
-
-```
-Users → Nginx → [Frontend + Backend]
-                       ↓
-           ┌───────────┴────────────┐
-           │                        │
-    PgBouncer → PostgreSQL    Redis (Cache)
-           │                        │
-           ↓                        ↓
-    [Celery Workers]        [Task Queue]
-           ↓
-   Binance WebSocket API
+ws://localhost:8000/ws/crypto/
 ```
 
-### Docker Services
-- **postgres**: PostgreSQL 15 database
-- **pgbouncer**: Connection pooler (100 connections → 2000 clients)
-- **redis**: Cache and message broker
-- **backend1**: Django REST API
-- **celery-worker**: Background task processor
-- **celery-beat**: Task scheduler (runs daily: alerts, plan expiration checks)
-- **data-worker**: Binance WebSocket data consumer
-- **calc-worker**: Distributed metric calculations
-- **nginx**: Load balancer and reverse proxy
-- **frontend**: Next.js application
-
----
-
-## 🔐 Security
-
-- JWT authentication with access/refresh tokens
-- 30-minute inactivity timeout with warning
-- CORS protection
-- Rate limiting (100 req/s per IP)
-- SQL injection protection (Django ORM)
-- XSS protection
-- CSRF tokens
-- Security headers (CSP, HSTS, X-Frame-Options)
-- Environment variable secrets
-
----
-
-## 📈 Performance Features
-
-- **Database Indexing**: Optimized queries on symbol, price, volume, timestamps
-- **Redis Caching**: 60s TTL for API responses
-- **Connection Pooling**: PgBouncer for efficient database connections
-- **Load Balancing**: Nginx round-robin across backend replicas
-- **Lazy Loading**: Frontend loads 50 rows at a time
-- **WebSocket**: Real-time updates without polling
-- **Celery**: Distributed task processing
-
----
-```
-
-## 🔧 Configuration
-
-### Key Environment Variables
-
-**Backend:**
-- `DATABASE_URL`: PostgreSQL connection string
-- `REDIS_URL`: Redis cache URL
-- `CELERY_BROKER_URL`: Celery broker URL
-- `BINANCE_API_KEY`: Binance API credentials
-- `TELEGRAM_BOT_TOKEN`: Telegram bot token
-- `STRIPE_SECRET_KEY`: Stripe payment key
-- `FIREBASE_PRIVATE_KEY`: Firebase auth credentials
-
-**Frontend:**
-- `NEXT_PUBLIC_API_URL`: Backend API URL
-- `NEXT_PUBLIC_WS_URL`: WebSocket URL
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe public key
-- `NEXT_PUBLIC_FIREBASE_CONFIG`: Firebase config
-
-### Docker Compose Services
-
-- `postgres`: PostgreSQL database
-- `pgbouncer`: Connection pooler
-- `redis`: Cache and message broker
-- `backend1`, `backend2`: Django app replicas
-- `celery-worker`: Background task processor
-- `celery-beat`: Task scheduler
-- `calc-worker-1-4`: Calculation workers
-- `data-worker`: Binance WebSocket consumer
-- `nginx`: Load balancer
-- `frontend`: Next.js app
-
-## 📚 API Documentation
-
-### Authentication
-All API endpoints (except `/api/register/` and `/api/login/`) require authentication:
-```
-Authorization: Bearer <access_token>
-```
-
-### Main Endpoints
-
-#### User Management
-- `POST /api/register/` - Create new user account
-- `POST /api/login/` - Authenticate user
-- `GET /api/user-info/` - Get current user details
-- `PATCH /api/update-profile/` - Update user profile
-
-#### Crypto Data
-- `GET /api/crypto-data/` - Get cryptocurrency data (paginated, sortable)
-- `GET /api/exchanges/` - Get available exchanges
-- `POST /api/refresh-data/` - Trigger data refresh
-
-#### Alerts
-- `GET /api/alerts/` - List user alerts
-- `POST /api/alerts/` - Create new alert
-- `DELETE /api/alerts/<id>/` - Delete alert
-
-#### Telegram
-- `GET /api/telegram-status/` - Check Telegram connection
-- `GET /api/telegram-connect/` - Get connection URL
-- `POST /api/telegram-disconnect/` - Disconnect Telegram
-- `POST /api/telegram-test-alert/` - Send test alert
-
-#### Payments
-- `POST /api/create-checkout-session/` - Create Stripe session
-- `POST /api/webhook/` - Stripe webhook handler
-- `GET /api/payment-history/` - Get payment history
-
-### WebSocket Endpoints
-
-Connect to: `ws://localhost:8080/ws/crypto/`
-
-**Messages Received:**
+**Client Authentication & Subscription:**
 ```json
 {
-  "type": "price_update",
-  "data": {
-    "symbol": "BTCUSDT",
-    "last_price": 45000.50,
-    "price_change_percent_24h": 2.5,
-    ...
-  }
+  "action": "subscribe",
+  "currency": "USDT",
+  "token": "<JWT_ACCESS_TOKEN>"
 }
 ```
 
-## 🔐 Security
-
-- HTTPS/TLS encryption
-- JWT authentication
-- CORS protection
-- Rate limiting (100 req/s per IP)
-- SQL injection protection (ORM)
-- XSS protection
-- CSRF tokens
-- Security headers (CSP, HSTS, X-Frame-Options)
-- Input validation and sanitization
-- Environment variable secrets
-
-## 🧪 Testing
-
-### Run Tests
-```bash
-# Backend tests
-cd backend
-python manage.py test
-
-# Frontend tests
-cd frontend
-npm test
+**Incoming Live Tick Payload:**
+```json
+{
+  "type": "price_update",
+  "data": [
+    {
+      "symbol": "BTCUSDT",
+      "last_price": 85536.01,
+      "price_change_percent_24h": 5.24,
+      "quote_volume_24h": 1381615193.0,
+      "bid_price": 85536.00,
+      "ask_price": 85536.01,
+      "rsi_1m": 51.26,
+      "m1_vol_pct": 0.0694,
+      "m5_vol_pct": 0.35
+    }
+  ]
+}
 ```
-
-## 📈 Performance
-
-### Optimizations
-- **Database**: Indexes on symbol, price, volume, timestamps
-- **Caching**: Redis with 60s TTL for API responses
-- **Connection Pooling**: PgBouncer (100 DB connections → 2000 clients)
-- **Load Balancing**: Nginx round-robin across backend replicas
-- **Lazy Loading**: Frontend loads 50 rows at a time
-- **WebSocket**: Real-time updates without polling
-- **Celery**: Distributed task processing (8 workers)
-
-### Benchmarks
-- **Initial Load**: 2-3 seconds for 2000+ symbols
-- **Real-time Updates**: <100ms latency
-- **API Response**: <200ms average
-- **Concurrent Users**: Tested up to 1000 users
-- **Database Queries**: <50ms average
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Database connection errors:**
-```bash
-# Check if PostgreSQL is running
-docker-compose ps postgres
-
-# Check connection
-docker-compose exec postgres pg_isready
-```
-
-**Redis connection errors:**
-```bash
-# Test Redis
-docker-compose exec redis redis-cli ping
-```
-
-**WebSocket disconnections:**
-- Check firewall rules
-- Verify nginx timeout settings
-- Check Binance API status
-
-**Missing data:**
-```bash
-# Trigger manual refresh
-curl -X POST http://localhost:8080/api/refresh-data/
-```
-
-## 📖 Documentation
-
-- [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md) - Complete production deployment instructions
-- [API Documentation](./docs/API.md) - Detailed API reference
-- [Architecture](./docs/ARCHITECTURE.md) - System architecture overview
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is proprietary and confidential.
-
-## 👨‍💻 Authors
-
-- **Your Name** - *Initial work*
-
-## 🙏 Acknowledgments
-
-- Binance for cryptocurrency data API
-- Django & Next.js communities
-- Open source contributors
-
-## 📞 Support
-
-For support, email support@yourdomain.com or open an issue on GitHub.
 
 ---
 
-**Built with ❤️ for crypto traders**
+### 🌐 REST API Endpoints
+
+#### Authentication & Account
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/register/` | Register new user account |
+| `POST` | `/api/request-login-token/` | Request passwordless magic link token |
+| `POST` | `/api/login-with-token/` | Validate token and obtain JWT access/refresh pair |
+| `GET` | `/api/user/` | Retrieve current authenticated user profile & plan tier |
+| `POST` | `/api/token/refresh/` | Refresh expired JWT access token |
+
+#### Market Data & Tickers
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/binance-data/?page=1&limit=25` | Paginated, filterable crypto pairs with RSI & volume |
+| `POST` | `/api/manual-refresh/` | Trigger immediate server-side data refresh from Binance |
+
+#### Alerts & Telegram Automation
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/alerts/` | List active user alerts |
+| `POST` | `/api/alerts/` | Create new price / volume alert rule |
+| `DELETE` | `/api/alerts/<id>/` | Remove an existing alert rule |
+| `GET` | `/api/telegram/status/` | Check Telegram bot pairing connection status |
+| `GET` | `/api/telegram/setup-token/` | Generate one-time pairing token for Telegram bot |
+| `POST` | `/api/telegram/test-alert/` | Dispatch test notification to connected Telegram |
+| `POST` | `/api/telegram/disconnect/` | Unlink Telegram account |
+
+---
+
+## 🤖 Automated Self-Healing System
+
+VoluSignal incorporates a self-healing operational layer designed for 99.9% uptime:
+
+```bash
+# Run automated repair diagnostic check
+./scripts/auto-repair.sh
+
+# Install continuous health supervision cron (every 5 minutes)
+./scripts/setup-automation.sh
+```
+
+**Automated Supervisors:**
+- ✅ **Memory & Resource Monitor**: Auto-restarts leaking workers when memory exceeds thresholds.
+- ✅ **Database & Redis Liveness Probe**: Detects stale connections and resets connection pools.
+- ✅ **WebSocket Reconnection Daemon**: Re-establishes dropped Binance feed sessions automatically.
+- ✅ **Disk Cleaner**: Trims container log files and Docker cache to prevent server disk starvation.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+Copyright &copy; 2026 **Viraj Savaliya**. All rights reserved.

@@ -8,10 +8,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['email', 'first_name', 'last_name', 'mobile_number']
         extra_kwargs = {
+            'email': {'validators': []},
             'first_name': {'required': True},
             'last_name': {'required': True},
-            'mobile_number': {'required': True},
+            'mobile_number': {'required': True, 'validators': []},
         }
+
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('A user with this email already exists.')
+        return value
+
+    def validate_mobile_number(self, value):
+        if User.objects.filter(mobile_number=value).exists():
+            raise serializers.ValidationError('A user with this mobile number already exists.')
+        return value
 
     def create(self, validated_data):
         user = User.objects.create_user(

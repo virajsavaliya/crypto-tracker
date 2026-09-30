@@ -19,7 +19,7 @@ class Command(BaseCommand):
             '--interval',
             type=int,
             default=2,
-            help='Polling interval in seconds (default: 2)'
+            help='Polling interval in seconds (default: 2)' 
         )
 
     def handle(self, *args, **options):

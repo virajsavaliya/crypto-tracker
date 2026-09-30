@@ -18,6 +18,8 @@ import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getUser, logout, authenticatedFetch } from '@/lib/auth';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 
 // Define User interface
 interface User {
@@ -47,21 +49,6 @@ const profileFormSchema = z.object({
   mobile_number: z.string().min(5, { message: 'Mobile number is too short.' }),
 });
 
-// A robust mechanism to handle concurrent token refresh calls
-let isRefreshing = false;
-let failedQueue: ((token: string) => void)[] = [];
-
-const processQueue = (error: Error | null, token: string | null = null) => {
-  failedQueue.forEach(promise => {
-    if (error) {
-      // Handle error case
-    } else {
-      promise(token!);
-    }
-  });
-  failedQueue = [];
-};
-
 const SettingsPage = () => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -74,67 +61,24 @@ const SettingsPage = () => {
     defaultValues: { first_name: '', last_name: '', username: '', mobile_number: '' },
   });
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('is_premium_user');
-    router.push('/');
-  }, [router]);
-
-  const refreshAndRetry = useCallback(async (originalRequest: (token?: string, isRetry?: boolean) => void) => {
-    if (isRefreshing) {
-      return new Promise<void>(resolve => {
-        failedQueue.push((token) => {
-          originalRequest(token, true);
-          resolve();
-        });
-      });
-    }
-    isRefreshing = true;
-    const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-    if (!localUser.refresh_token) {
-      handleLogout();
-      return;
-    }
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/token/refresh/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh: localUser.refresh_token }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const updatedUser = { ...localUser, access_token: data.access };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        processQueue(null, data.access);
-        await originalRequest(updatedUser.access_token, true);
-      } else {
-        throw new Error('Failed to refresh token');
-      }
-    } catch (error) {
-      processQueue(error as Error, null);
-      handleLogout();
-    } finally {
-      isRefreshing = false;
-    }
-  }, [handleLogout]);
-
-  const fetchData = useCallback(async (token?: string, isRetry = false) => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const authToken = token || localUser.access_token;
-    if (!authToken) {
-      handleLogout();
+    
+    // Check authentication using centralized auth utility
+    const authUser = getUser();
+    if (!authUser) {
+      logout();
       return;
     }
 
     try {
       const [userResponse, paymentResponse] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment-history/`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment-history/`)
       ]);
 
-      if (userResponse.status === 401 && !isRetry) {
-        await refreshAndRetry(fetchData);
+      if (!userResponse || !paymentResponse) {
+        // authenticatedFetch handles logout on auth errors
         return;
       }
 
@@ -150,10 +94,11 @@ const SettingsPage = () => {
       profileForm.reset(userData);
 
     } catch (err) {
+      console.error('Error fetching settings data:', err);
     } finally {
       setLoading(false);
     }
-  }, [handleLogout, profileForm, refreshAndRetry]);
+  }, [profileForm]);
 
   useEffect(() => {
     fetchData();
@@ -163,16 +108,27 @@ const SettingsPage = () => {
   const handleProfileSubmit = async (data: z.infer<typeof profileFormSchema>) => {
     setUpdateMessage('');
     setLoading(true);
+    
     try {
-      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/update/`, {
+      const authUser = getUser();
+      if (!authUser) {
+        logout();
+        return;
+      }
+
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/update/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localUser.access_token}`,
         },
         body: JSON.stringify(data),
       });
+
+      if (!response) {
+        // authenticatedFetch handles logout on auth errors
+        return;
+      }
+
       if (response.ok) {
         const updatedUser = await response.json();
         setUser(updatedUser);
@@ -191,20 +147,21 @@ const SettingsPage = () => {
 
   if (loading && !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 p-6">
-        <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <LoadingSpinner message="Loading settings..." />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen p-6 bg-gray-100 font-sans">
+    <div className="min-h-screen bg-gray-50 font-sans">
       <Header />
-      <div className="container mx-auto px-6 py-8 flex-grow">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your account settings, profile, and payment history.</p>
-        </header>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <div className="mb-6 lg:mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+          <p className="text-gray-600">Manage your account settings, profile, and payment history</p>
+        </div>
 
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-2 max-w-md">

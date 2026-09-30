@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import Header from '@/components/shared/Header';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getUser, logout, authenticatedFetch } from '@/lib/auth';
 
 interface Payment {
   id: number;
@@ -24,25 +25,28 @@ const PaymentHistoryPage = () => {
   useEffect(() => {
     const fetchPaymentHistory = async () => {
       setLoading(true);
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (!user.access_token) {
-        router.push('/');
+      
+      // Check authentication using centralized auth utility
+      const authUser = getUser();
+      if (!authUser) {
+        logout();
         return;
       }
 
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment-history/`, {
-          headers: {
-            'Authorization': `Bearer ${user.access_token}`,
-          },
-        });
+        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment-history/`);
+
+        if (!response) {
+          // authenticatedFetch handles logout on auth errors
+          return;
+        }
 
         if (response.ok) {
           const data = await response.json();
           setPayments(data);
-        } else {
         }
       } catch (err) {
+        console.error('Error fetching payment history:', err);
       } finally {
         setLoading(false);
       }

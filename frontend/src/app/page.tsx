@@ -16,6 +16,9 @@ import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { signInWithPopup, signOut } from "firebase/auth";
 import { auth, provider } from '@/lib/firebaseConfig';
+import { saveUser } from '@/lib/auth';
+import { getApiEndpoint } from '@/lib/config';
+
 
 
 // Define the schema for the login form fields.
@@ -80,7 +83,7 @@ export default function App() {
     setIsLoggingIn(true);
     setLoginMessage(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/request-login-token/`, {
+      const response = await fetch(getApiEndpoint('/api/request-login-token/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +111,7 @@ export default function App() {
     setIsRegistering(true);
     setRegisterMessage(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/register/`, {
+      const response = await fetch(getApiEndpoint('/api/register/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +124,16 @@ export default function App() {
       const responseData = await response.json();
 
       if (!response.ok) {
-        setRegisterMessage(responseData.message || 'Registration failed.');
+        const fieldErrors = responseData.errors || responseData;
+        const flattenedErrors = Object.entries(fieldErrors)
+          .flatMap(([field, value]) => {
+            if (Array.isArray(value)) {
+              return value.map((message) => `${field}: ${message}`);
+            }
+            return [`${field}: ${String(value)}`];
+          })
+          .join(' | ');
+        setRegisterMessage(flattenedErrors || responseData.message || 'Registration failed.');
       } else {
         setRegisterMessage(responseData.message);
         registerForm.reset();
@@ -146,7 +158,7 @@ export default function App() {
       const lastName = lastNameParts.join(' ');
 
       // Send the ID token to your Django backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/google-login/`, {
+      const response = await fetch(getApiEndpoint('/api/google-login/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,15 +174,17 @@ export default function App() {
       const responseData = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('user', JSON.stringify({
+        // Use sessionStorage via saveUser - will auto-logout on tab close
+        saveUser({
           ...responseData,
           access_token: responseData.access,
           refresh_token: responseData.refresh,
           subscription_plan: responseData.subscription_plan || 'free',
           is_premium_user: responseData.is_premium_user || false,
-        }));
+        });
         router.push('/dashboard');
       } else {
+        setLoginMessage(responseData.error || responseData.message || 'Google login failed.');
       }
 
     } catch (err) {
@@ -192,7 +206,7 @@ export default function App() {
           <div>
             <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
               <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Crypto Tracker</span>
+              <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Volume Tracker</span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight text-gray-900 dark:text-white mb-3 sm:mb-4">
               Track the market. <br className="hidden sm:block" />Trade with confidence.
@@ -218,7 +232,7 @@ export default function App() {
                 Access Your Account
               </CardTitle>
               <CardDescription className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
-                Sign in or create a new account to continue.
+                Login or Register to continue.
               </CardDescription>
             </CardHeader>
             <CardContent className="px-2 sm:px-6">

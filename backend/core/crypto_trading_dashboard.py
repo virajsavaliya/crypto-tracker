@@ -112,7 +112,7 @@ class BinanceAPIClient:
         except Exception as e:
             logger.error(f"Error fetching exchange info: {e}")
             return {}
-
+    
 class RSICalculator:
     """Fast RSI calculation for multiple timeframes"""
     

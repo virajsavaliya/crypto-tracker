@@ -1,0 +1,22 @@
+[Unit]
+Description=GitHub Webhook Listener for Auto-Deployment
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/crypto-tracker
+Environment="WEBHOOK_SECRET=your-webhook-secret-change-this"
+ExecStart=/usr/bin/python3 /root/crypto-tracker/webhook-listener.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/webhook-deployment.log
+StandardError=append:/var/log/webhook-deployment.log
+
+# Security settings
+NoNewPrivileges=false
+PrivateTmp=false
+
+[Install]
+WantedBy=multi-user.target

@@ -134,11 +134,18 @@ class TelegramBot:
     
     def verify_setup_token(self, token: str) -> Optional[str]:
         """Verify setup token and return user email"""
+        # First check cache
         user_email = cache.get(f"telegram_setup_{token}")
         if user_email:
             cache.delete(f"telegram_setup_{token}")
             return user_email
-        return None
+        
+        # Fallback: Check database if token not in cache
+        try:
+            user = User.objects.get(telegram_setup_token=token)
+            return user.email
+        except User.DoesNotExist:
+            return None
     
     def connect_user_telegram(self, user_email: str, chat_id: str, username: str = None) -> bool:
         """Connect user's Telegram account"""
@@ -152,12 +159,12 @@ class TelegramBot:
             
             # Send welcome message with modern design
             welcome_msg = f"""
-🎉 <b>Welcome to CryptoPulseBot!</b>
+🎉 <b>Welcome to Volume Tracker Bot!</b>
 
 Hi <b>{user.first_name}</b>! I'm your personal crypto trading assistant. 🚀
 
 ✅ <b>Connection Successful!</b>
-Your Telegram account has been connected to your CryptoPulse dashboard.
+Your Telegram account has been connected to your Volume Tracker dashboard.
 
 <b>What I can do for you:</b>
 
@@ -278,7 +285,7 @@ Happy trading! 📈💰
 
 ⏰ <b>Time:</b> {current_time}
 
-<i>🚀 Real-time crypto alerts by CryptoPulseBot</i>
+<i>🚀 Real-time crypto alerts by Volume Tracker Bot</i>
 """
             
             return self.send_message(user.telegram_chat_id, formatted_message)
@@ -351,7 +358,7 @@ Happy trading! 📈💰
 💡 <b>Suggestion:</b> {suggestion}
 ⏰ <b>Time:</b> {current_time}
 
-<i>� Real-time crypto alerts by CryptoPulseBot</i>
+<i>📊 Real-time crypto alerts by Volume Tracker Bot</i>
 """
             
             return self.send_message(user.telegram_chat_id, message.strip())
@@ -395,7 +402,7 @@ Happy trading! 📈💰
 💡 <b>Suggestion:</b> {description}
 ⏰ <b>Time:</b> {current_time}
 
-<i>📈 Technical analysis by CryptoPulseBot</i>
+<i>📈 Technical analysis by Volume Tracker Bot</i>
 """
             
             return self.send_message(user.telegram_chat_id, message.strip())
@@ -452,7 +459,7 @@ Happy trading! 📈💰
                 else:
                     # No token provided - show welcome message with buttons
                     welcome_msg = """
-👋 <b>Welcome to CryptoPulseBot!</b>
+👋 <b>Welcome to Volume Tracker Bot!</b>
 
 Hi! I'm your personal crypto trading assistant. 🚀
 
@@ -516,7 +523,7 @@ Connect your account to start receiving alerts!
                 help_msg = """
 👋 <b>Hi there!</b>
 
-I'm CryptoPulseBot, your crypto trading assistant! 🚀
+I'm Volume Tracker Bot, your crypto trading assistant! 🚀
 
 I understand commands like:
 • /start - Connect your account
@@ -901,7 +908,7 @@ Thank you for being a premium member! 🎉
     def handle_help_command(self, chat_id: str):
         """Handle /help command with modern design"""
         help_msg = """
-🤖 <b>CryptoPulseBot Help Center</b>
+🤖 <b>Volume Tracker Bot Help Center</b>
 
 <b>📱 Available Commands:</b>
 
@@ -933,7 +940,7 @@ Thank you for being a premium member! 🎉
 • Choose alert timeframes
 
 <b>Need Support?</b>
-📧 Email: support@cryptopulse.com
+📧 Email: support@volumetracker.com
 🌐 Dashboard: Manage your account
 💬 Help: We're here 24/7!
 

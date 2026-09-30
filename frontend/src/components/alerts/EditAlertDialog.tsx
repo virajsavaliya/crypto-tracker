@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert } from '@/types/alerts';
 
 interface EditAlertDialogProps {
@@ -28,6 +28,33 @@ interface EditAlertDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
+
+// Map frontend alert types to backend types
+const mapAlertTypeToBackend = (frontendType: string): string => {
+  const mapping: Record<string, string> = {
+    'price_target': 'price_movement',
+    'pump': 'pump_alert',
+    'dump': 'dump_alert',
+    'volume_spike': 'volume_change',
+    'rsi_overbought': 'rsi_overbought',
+    'rsi_oversold': 'rsi_oversold',
+    'custom': 'price_movement',
+  };
+  return mapping[frontendType] || frontendType;
+};
+
+// Map backend alert types to frontend display types
+const mapAlertTypeFromBackend = (backendType: string): string => {
+  const mapping: Record<string, string> = {
+    'price_movement': 'price_movement',
+    'pump_alert': 'pump_alert',
+    'dump_alert': 'dump_alert',
+    'volume_change': 'volume_change',
+    'rsi_overbought': 'rsi_overbought',
+    'rsi_oversold': 'rsi_oversold',
+  };
+  return mapping[backendType] || backendType;
+};
 
 export default function EditAlertDialog({
   alert,
@@ -49,15 +76,25 @@ export default function EditAlertDialog({
   useEffect(() => {
     if (alert) {
       setCoinSymbol(alert.symbol || '');
-      setAlertType(alert.alert_type || '');
+      
+      // Map the alert type properly
+      const backendType = mapAlertTypeToBackend(alert.alert_type);
+      setAlertType(backendType);
+      
       setConditionValue(alert.threshold?.toString() || '');
       setTimePeriod(alert.timeframe || '5m');
       
-      // Handle notification channels
+      // Handle notification channels properly
       if (Array.isArray(alert.notification_channels)) {
-        setNotificationChannels(alert.notification_channels.join(','));
+        if (alert.notification_channels.length === 2) {
+          setNotificationChannels('both');
+        } else if (alert.notification_channels.includes('telegram')) {
+          setNotificationChannels('telegram');
+        } else {
+          setNotificationChannels('email');
+        }
       } else {
-        setNotificationChannels(alert.notification_channels || 'both');
+        setNotificationChannels(alert.notification_channels || 'email');
       }
     }
   }, [alert]);
@@ -120,267 +157,173 @@ export default function EditAlertDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+        <DialogHeader className="border-b border-gray-100 pb-4">
+          <DialogTitle className="text-2xl font-bold text-gray-900">
             Edit Alert
           </DialogTitle>
-          <DialogDescription className="text-base">
-            Customize your alert settings. Changes apply immediately.
+          <DialogDescription className="text-sm text-gray-600 mt-2">
+            Modify your alert configuration. All changes take effect immediately.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-5 py-4">
+        <form onSubmit={handleSubmit} className="mt-6">
+          <div className="space-y-6">
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 text-red-800 px-4 py-3 rounded-r-lg flex items-start gap-2">
-                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-                <span className="text-sm">{error}</span>
+              <div className="bg-red-50 border-l-4 border-red-600 p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800">Error</p>
+                  <p className="text-sm text-red-700 mt-1">{error}</p>
+                </div>
               </div>
             )}
 
-            {/* Coin Symbol - Enhanced */}
+            {/* Coin Symbol */}
             <div className="space-y-2">
-              <Label htmlFor="symbol" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-indigo-600">📊</span> Cryptocurrency
+              <Label htmlFor="symbol" className="text-sm font-semibold text-gray-900">
+                Cryptocurrency Symbol
               </Label>
-              <div className="relative">
-                <Input
-                  id="symbol"
-                  placeholder="Enter symbol (e.g., BTCUSDT)"
-                  value={coinSymbol}
-                  onChange={(e) => setCoinSymbol(e.target.value.toUpperCase())}
-                  required
-                  className="pl-10 text-base font-medium border-2 focus:border-indigo-400"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
-                  $
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <span className="text-blue-500">ℹ️</span>
-                Must end with USDT (e.g., BTCUSDT, ETHUSDT, BNBUSDT)
+              <Input
+                id="symbol"
+                placeholder="BTCUSDT"
+                value={coinSymbol}
+                onChange={(e) => setCoinSymbol(e.target.value.toUpperCase())}
+                required
+                className="h-11 border-gray-200 focus:border-gray-400 focus:ring-gray-400 rounded-lg font-mono"
+              />
+              <p className="text-xs text-gray-500">
+                Enter the trading pair symbol (e.g., BTCUSDT, ETHUSDT)
               </p>
             </div>
 
-            {/* Alert Type - Enhanced with visual cards */}
+            {/* Alert Type */}
             <div className="space-y-2">
-              <Label htmlFor="type" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-indigo-600">🎯</span> Alert Type
+              <Label htmlFor="type" className="text-sm font-semibold text-gray-900">
+                Alert Type
               </Label>
               <Select value={alertType} onValueChange={setAlertType} required>
-                <SelectTrigger className="border-2 text-base focus:border-indigo-400">
-                  <SelectValue placeholder="Choose what to monitor" />
+                <SelectTrigger className="h-11 border-gray-200 focus:border-gray-400 focus:ring-gray-400 rounded-lg">
+                  <SelectValue placeholder="Select alert type" />
                 </SelectTrigger>
-                <SelectContent>
-                  <div className="p-1">
-                    <SelectItem value="pump_alert" className="cursor-pointer hover:bg-green-50">
-                      <div className="flex items-center gap-2 py-1">
-                        <span className="text-lg">📈</span>
-                        <div>
-                          <div className="font-semibold text-green-600">Pump Alert</div>
-                          <div className="text-xs text-gray-500">Price increase threshold</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="dump_alert" className="cursor-pointer hover:bg-red-50">
-                      <div className="flex items-center gap-2 py-1">
-                        <span className="text-lg">📉</span>
-                        <div>
-                          <div className="font-semibold text-red-600">Dump Alert</div>
-                          <div className="text-xs text-gray-500">Price decrease threshold</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="price_movement" className="cursor-pointer hover:bg-blue-50">
-                      <div className="flex items-center gap-2 py-1">
-                        <span className="text-lg">↕️</span>
-                        <div>
-                          <div className="font-semibold text-blue-600">Price Movement</div>
-                          <div className="text-xs text-gray-500">Any direction change</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="rsi_overbought" className="cursor-pointer hover:bg-orange-50">
-                      <div className="flex items-center gap-2 py-1">
-                        <span className="text-lg">🔴</span>
-                        <div>
-                          <div className="font-semibold text-orange-600">RSI Overbought</div>
-                          <div className="text-xs text-gray-500">RSI above threshold (&gt;70)</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="rsi_oversold" className="cursor-pointer hover:bg-purple-50">
-                      <div className="flex items-center gap-2 py-1">
-                        <span className="text-lg">🟣</span>
-                        <div>
-                          <div className="font-semibold text-purple-600">RSI Oversold</div>
-                          <div className="text-xs text-gray-500">RSI below threshold (&lt;30)</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="volume_change" className="cursor-pointer hover:bg-cyan-50">
-                      <div className="flex items-center gap-2 py-1">
-                        <span className="text-lg">📊</span>
-                        <div>
-                          <div className="font-semibold text-cyan-600">Volume Change</div>
-                          <div className="text-xs text-gray-500">Trading volume spike</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  </div>
+                <SelectContent className="bg-white border border-gray-200 rounded-xl">
+                  <SelectItem value="pump_alert" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">Pump Alert</span>
+                  </SelectItem>
+                  <SelectItem value="dump_alert" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">Dump Alert</span>
+                  </SelectItem>
+                  <SelectItem value="price_movement" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">Price Movement</span>
+                  </SelectItem>
+                  <SelectItem value="rsi_overbought" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">RSI Overbought</span>
+                  </SelectItem>
+                  <SelectItem value="rsi_oversold" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">RSI Oversold</span>
+                  </SelectItem>
+                  <SelectItem value="volume_change" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">Volume Change</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Threshold/Condition - Enhanced with suggestions */}
+            {/* Threshold/Condition */}
             <div className="space-y-2">
-              <Label htmlFor="threshold" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-indigo-600">🎚️</span>
-                {alertType?.includes('rsi') ? 'RSI Threshold' : 'Price Change %'}
+              <Label htmlFor="threshold" className="text-sm font-semibold text-gray-900">
+                {alertType?.includes('rsi') ? 'RSI Threshold Value' : 'Price Change Percentage'}
               </Label>
               <div className="relative">
                 <Input
                   id="threshold"
                   type="number"
                   step="0.01"
-                  placeholder={alertType?.includes('rsi') ? 'e.g., 70 or 30' : 'e.g., 5 or -5'}
+                  placeholder={alertType?.includes('rsi') ? '70' : '5.0'}
                   value={conditionValue}
                   onChange={(e) => setConditionValue(e.target.value)}
                   required
-                  className="pr-12 text-base font-medium border-2 focus:border-indigo-400"
+                  className="h-11 pr-10 border-gray-200 focus:border-gray-400 focus:ring-gray-400 rounded-lg font-mono"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">
-                  {alertType?.includes('rsi') ? '' : '%'}
-                </span>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
-                <p className="font-semibold text-blue-800 mb-1">💡 Suggested values:</p>
-                {alertType?.includes('rsi') ? (
-                  <p className="text-blue-700">
-                    • Overbought: <strong>70-80</strong> (common: 70) | Oversold: <strong>20-30</strong> (common: 30)
-                  </p>
-                ) : alertType === 'pump_alert' ? (
-                  <p className="text-blue-700">
-                    • Conservative: <strong>5-10%</strong> | Moderate: <strong>3-5%</strong> | Aggressive: <strong>1-3%</strong>
-                  </p>
-                ) : alertType === 'dump_alert' ? (
-                  <p className="text-blue-700">
-                    • Conservative: <strong>-5 to -10%</strong> | Moderate: <strong>-3 to -5%</strong> | Aggressive: <strong>-1 to -3%</strong>
-                  </p>
-                ) : alertType === 'volume_change' ? (
-                  <p className="text-blue-700">
-                    • Normal spike: <strong>20-50%</strong> | Large spike: <strong>50-100%</strong> | Massive: <strong>&gt;100%</strong>
-                  </p>
-                ) : (
-                  <p className="text-blue-700">
-                    • Small moves: <strong>0.5-2%</strong> | Medium: <strong>2-5%</strong> | Large: <strong>&gt;5%</strong>
-                  </p>
+                {!alertType?.includes('rsi') && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
+                    %
+                  </span>
                 )}
               </div>
             </div>
 
-            {/* Time Period - Enhanced with icons */}
+            {/* Time Period */}
             <div className="space-y-2">
-              <Label htmlFor="timeframe" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-indigo-600">⏱️</span> Timeframe
+              <Label htmlFor="timeframe" className="text-sm font-semibold text-gray-900">
+                Timeframe
               </Label>
               <Select value={timePeriod} onValueChange={setTimePeriod} required>
-                <SelectTrigger className="border-2 text-base focus:border-indigo-400">
-                  <SelectValue placeholder="Select monitoring period" />
+                <SelectTrigger className="h-11 border-gray-200 focus:border-gray-400 focus:ring-gray-400 rounded-lg">
+                  <SelectValue placeholder="Select timeframe" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1m" className="cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <span>⚡</span> <strong>1 Minute</strong> - Ultra-fast alerts
-                    </div>
+                <SelectContent className="bg-white border border-gray-200 rounded-xl">
+                  <SelectItem value="1m" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">1 Minute</span>
                   </SelectItem>
-                  <SelectItem value="5m" className="cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <span>🚀</span> <strong>5 Minutes</strong> - Quick alerts
-                    </div>
+                  <SelectItem value="5m" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">5 Minutes</span>
                   </SelectItem>
-                  <SelectItem value="15m" className="cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <span>📊</span> <strong>15 Minutes</strong> - Balanced (recommended)
-                    </div>
+                  <SelectItem value="15m" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">15 Minutes</span>
                   </SelectItem>
-                  <SelectItem value="1h" className="cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <span>📈</span> <strong>1 Hour</strong> - Trend alerts
-                    </div>
+                  <SelectItem value="1h" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">1 Hour</span>
                   </SelectItem>
-                  <SelectItem value="24h" className="cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <span>📅</span> <strong>24 Hours</strong> - Daily overview
-                    </div>
+                  <SelectItem value="24h" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">24 Hours</span>
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Notification Channels - Enhanced visual */}
+            {/* Notification Channels */}
             <div className="space-y-2">
-              <Label htmlFor="notifications" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-indigo-600">📬</span> Notification Method
+              <Label htmlFor="notifications" className="text-sm font-semibold text-gray-900">
+                Notification Method
               </Label>
               <Select
                 value={notificationChannels}
                 onValueChange={setNotificationChannels}
                 required
               >
-                <SelectTrigger className="border-2 text-base focus:border-indigo-400">
-                  <SelectValue placeholder="How to receive alerts" />
+                <SelectTrigger className="h-11 border-gray-200 focus:border-gray-400 focus:ring-gray-400 rounded-lg">
+                  <SelectValue placeholder="Select notification method" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email" className="cursor-pointer hover:bg-blue-50">
-                    <div className="flex items-center gap-2 py-1">
-                      <span className="text-lg">📧</span>
-                      <div>
-                        <div className="font-semibold">Email Only</div>
-                        <div className="text-xs text-gray-500">Receive alerts via email</div>
-                      </div>
-                    </div>
+                <SelectContent className="bg-white border border-gray-200 rounded-xl">
+                  <SelectItem value="email" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">Email</span>
                   </SelectItem>
-                  <SelectItem value="telegram" className="cursor-pointer hover:bg-blue-50">
-                    <div className="flex items-center gap-2 py-1">
-                      <span className="text-lg">📱</span>
-                      <div>
-                        <div className="font-semibold">Telegram Only</div>
-                        <div className="text-xs text-gray-500">Instant mobile notifications</div>
-                      </div>
-                    </div>
+                  <SelectItem value="telegram" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">Telegram</span>
                   </SelectItem>
-                  <SelectItem value="both" className="cursor-pointer hover:bg-green-50">
-                    <div className="flex items-center gap-2 py-1">
-                      <span className="text-lg">📧📱</span>
-                      <div>
-                        <div className="font-semibold text-green-600">Email + Telegram</div>
-                        <div className="text-xs text-gray-500">Maximum reliability (recommended)</div>
-                      </div>
-                    </div>
+                  <SelectItem value="both" className="cursor-pointer focus:bg-gray-100">
+                    <span className="font-medium">Email and Telegram</span>
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="mt-8 gap-3 border-t border-gray-200 pt-6">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
-              className="border-2"
+              className="flex-1 sm:flex-none h-11 border border-gray-200 rounded-lg hover:bg-gray-100 font-semibold"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={loading}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              className="flex-1 sm:flex-none h-11 bg-gray-900 hover:bg-gray-800 text-white font-semibold"
             >
               {loading ? (
                 <>
@@ -388,12 +331,7 @@ export default function EditAlertDialog({
                   Updating...
                 </>
               ) : (
-                <>
-                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Update Alert
-                </>
+                'Update Alert'
               )}
             </Button>
           </DialogFooter>

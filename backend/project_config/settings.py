@@ -15,11 +15,36 @@ BACKEND_HOSTNAME = os.environ.get('BACKEND_HOSTNAME')
 FRONTEND_URL = os.environ.get('FRONTEND_URL')
 
 # Add your backend hostname to ALLOWED_HOSTS
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend1', 'backend2', 'backend']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend1', 'backend2', 'backend', 'volusignal.com', 'www.volusignal.com', 'api.volusignal.com', '46.62.216.158']
 if BACKEND_HOSTNAME:
     ALLOWED_HOSTS.append(BACKEND_HOSTNAME)
 if os.environ.get('ALLOWED_HOSTS'):
     ALLOWED_HOSTS.extend(os.environ.get('ALLOWED_HOSTS').split(','))
+
+# --- PRODUCTION SECURITY SETTINGS ---
+# Only enable these security features in production (when DEBUG is False)
+if not DEBUG:
+    # HTTPS/SSL settings
+    SECURE_SSL_REDIRECT = False  # Nginx handles SSL redirect
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
+    # Cookie security
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    
+    # Security headers (some handled by Nginx, but good to have as backup)
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # HSTS (Strict Transport Security) - be careful with this in production
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # --- APPLICATION DEFINITION ---
 INSTALLED_APPS = [
@@ -29,7 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 'corsheaders',  # Disabled: CORS handled by nginx to avoid duplicate headers
+    'corsheaders',  # Enable for local development
     'rest_framework',
     'rest_framework.authtoken',
     'django_celery_beat',  # Celery Beat scheduler for periodic tasks
@@ -39,8 +64,7 @@ INSTALLED_APPS = [
 
 # --- MIDDLEWARE (Corrected Order) ---
 MIDDLEWARE = [
-    # CORS Middleware disabled: nginx handles CORS to avoid duplicate headers
-    # 'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Enable for local development
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -51,21 +75,27 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# --- CORS SETTINGS (Disabled: nginx handles CORS) ---
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://localhost:8080",  # Nginx load balancer
-# ]
-# if FRONTEND_URL:
-#     CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
-# if os.environ.get('CORS_ALLOWED_ORIGINS'):
-#     CORS_ALLOWED_ORIGINS.extend(os.environ.get('CORS_ALLOWED_ORIGINS').split(','))
-# 
-# CORS_ALLOW_CREDENTIALS = True
+# --- CORS SETTINGS (Enable for local development) ---
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8080",  # Nginx load balancer
+]
+if FRONTEND_URL:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+if os.environ.get('CORS_ALLOWED_ORIGINS'):
+    CORS_ALLOWED_ORIGINS.extend(os.environ.get('CORS_ALLOWED_ORIGINS').split(','))
+
+CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:8080",
+    "http://46.62.216.158:3000",
+    "http://46.62.216.158:8080",
+    "http://volusignal.com",
+    "http://www.volusignal.com",
+    "https://volusignal.com",
+    "https://www.volusignal.com",
 ]
 if FRONTEND_URL:
     CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
@@ -109,14 +139,12 @@ else:
             'PASSWORD': os.getenv("DB_PASSWORD", "postgres"),
             'HOST': os.getenv("DB_HOST", "localhost"),
             'PORT': os.getenv("DB_PORT", "5432"),
-            'OPTIONS': {
-                'MAX_CONNS': 10,
-                'conn_max_age': 300,
-            }
+            'CONN_MAX_AGE': 300,
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 
-# --- CACHING with Redis (Optimized for low memory usage) ---
+# --- CACHING with Redis (Optimized with retry logic for stability) ---
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
@@ -126,11 +154,15 @@ CACHES = {
             'CONNECTION_POOL_KWARGS': {
                 'max_connections': 25,
                 'retry_on_timeout': True,
+                'socket_connect_timeout': 5,
+                'socket_timeout': 5,
+                'health_check_interval': 10,
             },
             'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
             'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            'IGNORE_EXCEPTIONS': True,  # Don't crash on Redis errors
         },
-        'TIMEOUT': 600,  # 10 minutes cache timeout (increased from 5 min)
+        'TIMEOUT': 600,  # 10 minutes cache timeout
         'KEY_PREFIX': 'crypto_tracker',
     }
 }
@@ -176,14 +208,21 @@ CELERY_BEAT_SCHEDULE = {
     # },
 }
 
-# --- CHANNELS (Optimized for low memory) ---
+# --- CHANNELS (Optimized with retry logic for stability) ---
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": { 
-            "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379')],
-            "capacity": 500,  # Reduced from 1500
-            "expiry": 30,     # Reduced from 60s
+            "hosts": [{
+                "address": os.environ.get('REDIS_URL', 'redis://localhost:6379'),
+                "retry_on_timeout": True,
+                "socket_connect_timeout": 30,
+                "socket_timeout": 30,
+                "health_check_interval": 30,
+            }],
+            "capacity": 1000,
+            "expiry": 60,
+            "group_expiry": 120,
         },
     },
 }
@@ -240,14 +279,16 @@ if not os.getenv('DOCKER_ENV'):
 
 # --- REST FRAMEWORK and AUTHENTICATION ---
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication']
+    'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication'],
+    # Convert Decimal fields to float instead of string to prevent "0E-10" string issues in frontend
+    'COERCE_DECIMAL_TO_STRING': False,
 }
 
-# --- JWT CONFIGURATION (2-minute inactivity timeout for traffic management) ---
+# --- JWT CONFIGURATION (15-minute session timeout) ---
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=2),  # Auto-logout after 2 minutes of inactivity
-    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=5),  # Refresh token expires after 5 minutes
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Session timeout after 15 minutes of inactivity
+    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=30),  # Refresh token expires after 30 minutes
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': False,
     'UPDATE_LAST_LOGIN': True,
@@ -285,6 +326,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { saveUser } from '@/lib/auth';
 
 export default function LoginWithTokenPage() {
   const router = useRouter();
@@ -32,15 +33,18 @@ export default function LoginWithTokenPage() {
         // FIX: Changed 'res' to 'response'
         const data = await response.json();
         if (response.ok) {
-          localStorage.setItem('user', JSON.stringify({
+          // Use sessionStorage via saveUser - will auto-logout on tab close
+          saveUser({
             first_name: data.first_name,
             last_name: data.last_name,
             email: data.email,
+            mobile_number: data.mobile_number || '',
+            username: data.username || data.email,
             access_token: data.access,
             refresh_token: data.refresh,
             subscription_plan: data.subscription_plan || 'free',
             is_premium_user: data.is_premium_user || false,
-          }));
+          });
           setMessage('Login successful. Redirecting to dashboard...');
           router.push('/dashboard');
         } else {

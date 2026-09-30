@@ -43,6 +43,7 @@ class Alert(models.Model):
         ('rsi_oversold', 'RSI Oversold (<30)'),
         ('pump_alert', 'Pump Alert (>5% in 1m)'),
         ('dump_alert', 'Dump Alert (<-5% in 1m)'),
+        ('top_100', 'Top 100 Coins Alert'),
     )
     TIME_PERIODS = (
         ('1m', '1 minute'), 

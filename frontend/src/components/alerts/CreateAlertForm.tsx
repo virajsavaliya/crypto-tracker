@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Bell, Loader2, TrendingUp, TrendingDown, Bell as BellIcon, TrendingUp as ActivityIcon } from 'lucide-react';
+import { Bell, Loader2, TrendingUp, TrendingDown, Bell as BellIcon, TrendingUp as ActivityIcon, Award } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { AlertType, NotificationChannel, TimeFrame, CreateAlertPayload } from '@/types/alerts';
@@ -45,7 +45,7 @@ export default function CreateAlertForm({ telegramConnected, onAlertCreated }: C
     setSuccess(null);
 
     // Validation
-    if (!symbol || symbol.trim() === '') {
+    if (alertType !== 'top_100' && (!symbol || symbol.trim() === '')) {
       setError('Please enter a valid symbol');
       return;
     }
@@ -76,8 +76,11 @@ export default function CreateAlertForm({ telegramConnected, onAlertCreated }: C
     try {
       setLoading(true);
 
+      // For top_100 alerts, use 'TOP100' as the symbol identifier
+      const alertSymbol = alertType === 'top_100' ? 'TOP100' : symbol.toUpperCase().trim();
+
       const payload: CreateAlertPayload = {
-        symbol: symbol.toUpperCase().trim(),
+        symbol: alertSymbol,
         alert_type: alertType,
         threshold: threshold,
         timeframe: timeframe,
@@ -102,7 +105,8 @@ export default function CreateAlertForm({ telegramConnected, onAlertCreated }: C
       const data = await response.json();
       
       if (data.success) {
-        setSuccess(`Alert created successfully for ${symbol}!`);
+        const displayName = alertType === 'top_100' ? 'Top 100 Coins' : symbol;
+        setSuccess(`Alert created successfully for ${displayName}!`);
         
         // Reset form
         setSymbol('BTCUSDT');
@@ -165,6 +169,13 @@ export default function CreateAlertForm({ telegramConnected, onAlertCreated }: C
           description: 'Alert when RSI falls below threshold (e.g., 30)',
           color: 'text-purple-600',
         };
+      case 'top_100':
+        return {
+          icon: <Award className="h-5 w-5" />,
+          label: 'Top 100 Coins',
+          description: 'Monitor all top 100 coins by market cap for pump/dump alerts',
+          color: 'text-yellow-600',
+        };
       default:
         return {
           icon: <Bell className="h-5 w-5" />,
@@ -210,14 +221,14 @@ export default function CreateAlertForm({ telegramConnected, onAlertCreated }: C
           <div className="space-y-2">
             <Label htmlFor="alert-type">Alert Type</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {(['pump', 'dump', 'rsi_overbought', 'rsi_oversold', 'price_target'] as AlertType[]).map((type) => {
+              {(['pump', 'dump', 'top_100', 'rsi_overbought', 'rsi_oversold', 'price_target'] as AlertType[]).map((type) => {
                 const info = getAlertTypeInfo(type);
                 return (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setAlertType(type)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    className={`p-4 rounded-lg border transition-all ${
                       alertType === type
                         ? 'border-indigo-600 bg-indigo-50'
                         : 'border-gray-200 hover:border-gray-300'
@@ -236,19 +247,37 @@ export default function CreateAlertForm({ telegramConnected, onAlertCreated }: C
             </p>
           </div>
 
-          {/* Symbol Input */}
-          <div className="space-y-2">
-            <Label htmlFor="symbol">Crypto Symbol</Label>
-            <Input
-              id="symbol"
-              type="text"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              placeholder="e.g., BTCUSDT, ETHUSDT"
-              required
-            />
-            <p className="text-xs text-gray-500">Enter the trading pair symbol (e.g., BTCUSDT)</p>
-          </div>
+          {/* Symbol Input - Only show for non-top_100 alerts */}
+          {alertType !== 'top_100' && (
+            <div className="space-y-2">
+              <Label htmlFor="symbol">Crypto Symbol</Label>
+              <Input
+                id="symbol"
+                type="text"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                placeholder="e.g., BTCUSDT, ETHUSDT"
+                required
+              />
+              <p className="text-xs text-gray-500">Enter the trading pair symbol (e.g., BTCUSDT)</p>
+            </div>
+          )}
+
+          {/* Top 100 Info - Only show when top_100 is selected */}
+          {alertType === 'top_100' && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <Award className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-yellow-900 mb-1">Monitoring Top 100 Coins</h4>
+                  <p className="text-sm text-yellow-800">
+                    This alert will monitor all top 100 coins by market cap. You'll receive a notification 
+                    whenever any of these coins meets your threshold criteria in the selected timeframe.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Threshold Input */}
           <div className="space-y-2">
@@ -275,8 +304,8 @@ export default function CreateAlertForm({ telegramConnected, onAlertCreated }: C
           {/* Timeframe Selection */}
           <div className="space-y-2">
             <Label htmlFor="timeframe">Timeframe</Label>
-            <Select value={timeframe} onValueChange={(value) => setTimeframe(value as TimeFrame)}>
-              <SelectTrigger>
+            <Select value={timeframe} onValueChange={(value: string) => setTimeframe(value as TimeFrame)} name="timeframe">
+              <SelectTrigger id="timeframe">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

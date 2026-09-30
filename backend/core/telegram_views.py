@@ -1,5 +1,5 @@
 """
-Telegram Webhook and Views for CryptoPulseBot
+Telegram Webhook and Views for Volume Tracker Bot
 Handles Telegram bot webhook endpoints and alert system integration
 """
 
@@ -142,13 +142,13 @@ def disconnect_telegram(request):
             goodbye_msg = """
 👋 <b>Telegram Disconnected</b>
 
-Your Telegram account has been disconnected from CryptoPulseBot.
+Your Telegram account has been disconnected from Volume Tracker Bot.
 
 You will no longer receive alerts via Telegram.
 
 To reconnect, go to your dashboard and click "Connect Telegram".
 
-Thank you for using CryptoPulseBot!
+Thank you for using Volume Tracker!
 """
             telegram_bot.send_message(user.telegram_chat_id, goodbye_msg)
         
@@ -198,7 +198,7 @@ def test_telegram_alert(request):
         test_message = """
 🧪 <b>Test Alert</b>
 
-This is a test message from CryptoPulseBot!
+This is a test message from Volume Tracker Bot!
 
 ✅ Your Telegram alerts are working correctly.
 

@@ -17,6 +17,7 @@ from .views import (
     HealthCheckView,
     MetricsView,
     CoinSymbolsView,
+    ManualRefreshView,
 )
 from .telegram_views import (
     telegram_webhook,
@@ -40,6 +41,7 @@ urlpatterns = [
     path('firebase-test/', FirebaseTestView.as_view(), name='firebase_test'),
     re_path(r'activate/(?P<token>[0-9a-f-]+)/$', ActivateAccountView.as_view(), name='activate'),
     path('binance-data/', BinanceDataView.as_view(), name='binance-data'),
+    path('manual-refresh/', ManualRefreshView.as_view(), name='manual-refresh'),
     path('user/', UserDetailView.as_view(), name='user-detail'),
     path('user/update/', UserUpdateView.as_view(), name='user-update'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

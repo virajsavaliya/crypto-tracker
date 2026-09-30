@@ -240,7 +240,7 @@ export default function TelegramConnectionCard({ onConnectionChange }: TelegramC
               Connected
             </Badge>
           ) : (
-            <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+            <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
               <X className="h-3 w-3 mr-1" />
               Not Connected
             </Badge>
@@ -270,7 +270,7 @@ export default function TelegramConnectionCard({ onConnectionChange }: TelegramC
                 <div className="flex-1">
                   <p className="font-semibold text-green-900">Telegram Connected!</p>
                   <p className="text-sm text-green-700 mt-1">
-                    Bot: @{status.bot_username || 'virajtesting_bot'}
+                    Bot: @{status.bot_username || 'volusignal_alerts_v2_bot'}
                   </p>
                   {status.username && (
                     <p className="text-sm text-green-700">

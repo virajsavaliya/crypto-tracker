@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies (suppress PATH warnings since we copy to different location)
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user --no-warn-script-location -r requirements.txt
 
 FROM python:3.12-slim
 

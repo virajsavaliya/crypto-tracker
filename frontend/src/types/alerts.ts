@@ -7,6 +7,8 @@ export type AlertType =
   | 'rsi_overbought' // RSI overbought signal
   | 'rsi_oversold'   // RSI oversold signal
   | 'volume_spike'   // Volume spike alert
+  | 'top_100'        // Top 100 coins alert
+  | 'new_coin_listing' // New coin listing alert
   | 'custom';        // Custom alert
 
 export type NotificationChannel = 'email' | 'telegram' | 'both';

@@ -86,21 +86,59 @@ export default function TelegramConnection({ onConnectionChange }: TelegramConne
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onConnectionChange]);
 
-  // Fetch initial connection status - only run once on mount
-  useEffect(() => {
-    // Determine premium from localStorage user
+  // Function to check premium status from localStorage
+  const checkPremiumStatus = useCallback(() => {
     try {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
         const plan = user?.subscription_plan || 'free';
         const premium = plan === 'basic' || plan === 'enterprise' || user?.is_premium_user === true;
+        console.log('🔍 TelegramConnection - User plan:', plan, 'is_premium_user:', user?.is_premium_user, 'Final isPremium:', premium);
         setIsPremium(premium);
+        return premium;
+      } else {
+        console.log('⚠️ TelegramConnection - No user found in localStorage');
+        setIsPremium(false);
+        return false;
       }
-    } catch {}
+    } catch (error) {
+      console.error('❌ TelegramConnection - Error parsing user:', error);
+      setIsPremium(false);
+      return false;
+    }
+  }, []);
+
+  // Fetch initial connection status - only run once on mount
+  useEffect(() => {
+    checkPremiumStatus();
     checkConnectionStatus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Listen for storage changes (e.g., when user upgrades in another tab or after upgrade)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        console.log('👂 TelegramConnection - User data changed in localStorage, rechecking premium status');
+        checkPremiumStatus();
+      }
+    };
+
+    // Also listen for custom event when user data is updated in same tab
+    const handleUserUpdate = () => {
+      console.log('👂 TelegramConnection - Custom user update event received');
+      checkPremiumStatus();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('userUpdated', handleUserUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('userUpdated', handleUserUpdate);
+    };
+  }, [checkPremiumStatus]);
 
   // Auto-refresh connection status every 5 seconds when QR is showing
   useEffect(() => {

@@ -294,8 +294,14 @@ class Command(BaseCommand):
 
             low, high = float(np.min(period_klines['l'])), float(np.max(period_klines['h']))
             metrics.update({f'{key}_low': low, f'{key}_high': high})
-            if open_price > 0:
-                metrics[f'{key}_range_pct'] = float(((high - low) / open_price) * 100)
+            
+            # Calculate range_pct using close_price as fallback if open_price is 0
+            # Range % = (High - Low) / Reference Price * 100
+            reference_price = open_price if open_price > 0 else close_price
+            if reference_price > 0:
+                metrics[f'{key}_range_pct'] = float(((high - low) / reference_price) * 100)
+            else:
+                metrics[f'{key}_range_pct'] = 0.0  # Default to 0% if no valid reference price
 
             base_volume_period = float(np.sum(period_klines['v']))
             quote_volume_period = float(np.sum(period_klines['q']))
